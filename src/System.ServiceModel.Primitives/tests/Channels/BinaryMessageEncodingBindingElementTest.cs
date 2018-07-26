@@ -1,15 +1,18 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System;
 using System.ServiceModel.Channels;
 using System.ServiceModel.Tests.Common;
 using System.Xml;
+using Infrastructure.Common;
 using Xunit;
 
 public static class BinaryMessageEncodingBindingElementTest
 {
-    [Fact]
+    [WcfFact]
     public static void Default_Ctor_Initializes_Properties()
     {
         BinaryMessageEncodingBindingElement bindingElement = new BinaryMessageEncodingBindingElement();
@@ -22,7 +25,7 @@ public static class BinaryMessageEncodingBindingElementTest
             "BinaryEncodingBindingElement_DefaultCtor: Assert property 'XmlDictionaryReaderQuotas' == default value failed.");
     }
 
-    [Theory]
+    [WcfTheory]
     [InlineData(CompressionFormat.Deflate)]
     [InlineData(CompressionFormat.GZip)]
     public static void CompressionFormat_Property_Sets(CompressionFormat format)
@@ -35,7 +38,7 @@ public static class BinaryMessageEncodingBindingElementTest
         // whether or not the CompressionFormat is valid for it. 
     }
 
-    [Theory]
+    [WcfTheory]
     [InlineData(0)]
     [InlineData(1)]
     [InlineData(int.MaxValue)]
@@ -46,7 +49,7 @@ public static class BinaryMessageEncodingBindingElementTest
         Assert.Equal<int>(value, bindingElement.MaxSessionSize);
     }
 
-    [Theory]
+    [WcfTheory]
     [InlineData(-1)]
     [InlineData(int.MinValue)]
     public static void MaxSessionSize_Property_Set_Invalid_Value_Throws(int value)
@@ -55,7 +58,7 @@ public static class BinaryMessageEncodingBindingElementTest
         Assert.Throws<ArgumentOutOfRangeException>(() => bindingElement.MaxSessionSize = value);
     }
 
-    [Theory]
+    [WcfTheory]
     [MemberData("ValidBinaryMessageEncoderMessageVersions", MemberType = typeof(TestData))]
     public static void MessageVersion_Property_Sets(MessageVersion version)
     {
@@ -64,7 +67,7 @@ public static class BinaryMessageEncodingBindingElementTest
         Assert.Equal<MessageVersion>(version, bindingElement.MessageVersion);
     }
 
-    [Theory]
+    [WcfTheory]
     [MemberData("InvalidBinaryMessageEncoderMessageVersions", MemberType = typeof(TestData))]
     public static void MessageVersion_Property_Set_Invalid_Value_Throws(MessageVersion version)
     {
@@ -72,7 +75,7 @@ public static class BinaryMessageEncodingBindingElementTest
         Assert.Throws<InvalidOperationException>(() => bindingElement.MessageVersion = version);
     }
 
-    [Fact]
+    [WcfFact]
     public static void MessageVersion_Property_Set_Null_Value_Throws()
     {
         BinaryMessageEncodingBindingElement bindingElement = new BinaryMessageEncodingBindingElement();

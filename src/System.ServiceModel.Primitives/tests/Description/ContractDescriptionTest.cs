@@ -1,16 +1,19 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System;
 using System.ServiceModel;
 using System.ServiceModel.Channels;
 using System.ServiceModel.Description;
+using Infrastructure.Common;
 using TestTypes;
 using Xunit;
 
 public static class ContractDescriptionTest
 {
-    [Fact]
+    [WcfFact]
     public static void Manually_Generated_Service_Type()
     {
         // -----------------------------------------------------------------------------------------------
@@ -66,8 +69,7 @@ public static class ContractDescriptionTest
         Assert.True(results == null, results);
     }
 
-
-    [Fact]
+    [WcfFact]
     public static void SvcUtil_Generated_Service_Type()
     {
         // -----------------------------------------------------------------------------------------------
@@ -123,7 +125,7 @@ public static class ContractDescriptionTest
         Assert.True(results == null, results);
     }
 
-    [Fact]
+    [WcfFact]
     public static void MessageContract_Service_Type()
     {
         // -----------------------------------------------------------------------------------------------
@@ -163,7 +165,7 @@ public static class ContractDescriptionTest
         Assert.True(results == null, results);
     }
 
-    [Fact]
+    [WcfFact]
     public static void Duplex_ContractDescription_Builds_From_ServiceContract()
     {
         // Arrange
@@ -189,5 +191,14 @@ public static class ContractDescriptionTest
         operation = contract.Operations.Find("Reply");
         Assert.True(operation != null, "Failed to find Reply operation in contract.");
         Assert.True(operation.IsOneWay, "Expected Reply operation to be IsOneWay.");
+    }
+
+    [WcfFact]
+    public static void ContractDescription_GetContract()
+    {
+        // Simple validation of the newly exposed "public ContractDescription GetContract(Type contractType);" method
+        ContractDescription contractDescription = ContractDescription.GetContract(typeof(IDescriptionTestsService));
+        Assert.True(String.Equals(typeof(IDescriptionTestsService).Name, contractDescription.ContractType.Name));
+        Assert.True(String.Equals("http://tempuri.org/", contractDescription.Namespace));
     }
 }

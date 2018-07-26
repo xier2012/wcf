@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -45,6 +47,7 @@ namespace System.ServiceModel.Channels
         private readonly bool _openBinder = false;
         private TimeSpan _operationTimeout;
         private object _proxy;
+        private string _terminatingOperationName;
         private bool _hasChannelStartedAutoClosing;
         private bool _hasCleanedUpChannelCollections;
         private EventTraceActivity _eventActivity;
@@ -554,8 +557,7 @@ namespace System.ServiceModel.Channels
                 {
                     if ((context != null) && (!context.IsUserContext) && (context.InternalServiceChannel == this))
                     {
-                        throw ExceptionHelper.PlatformNotSupported();
-                        //throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new InvalidOperationException(SR.Format(SR.SFxCallbackRequestReplyInOrder1, typeof(CallbackBehaviorAttribute).Name)));
+                        throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new InvalidOperationException(SR.Format(SR.SFxCallbackRequestReplyInOrder1, typeof(CallbackBehaviorAttribute).Name)));
                     }
                 }
             }
@@ -563,6 +565,11 @@ namespace System.ServiceModel.Channels
             if ((State == CommunicationState.Created) && !operation.IsInitiating)
             {
                 throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new InvalidOperationException(SR.Format(SR.SFxNonInitiatingOperation1, operation.Name)));
+            }
+
+            if (_terminatingOperationName != null)
+            {
+                throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new InvalidOperationException(SR.Format(SR.SFxTerminatingOperationAlreadyCalled1, _terminatingOperationName)));
             }
 
             if (_hasChannelStartedAutoClosing)
@@ -602,6 +609,17 @@ namespace System.ServiceModel.Channels
                         string text = SR.Format(SR.SFxRequestHasInvalidFaultToOnClient, faultTo.Uri, localUri);
                         Exception error = new InvalidOperationException(text);
                         throw TraceUtility.ThrowHelperError(error, rpc.Request);
+                    }
+ 
+                    if (this._messageVersion.Addressing == AddressingVersion.WSAddressingAugust2004)
+                    {
+                        EndpointAddress from = headers.From;
+                        if ((from != null) && !from.IsAnonymous && (localUri != from.Uri))
+                        {
+                            string text = SR.Format(SR.SFxRequestHasInvalidFromOnClient, from.Uri, localUri);
+                            Exception error = new InvalidOperationException(text);
+                            throw TraceUtility.ThrowHelperError(error, rpc.Request);
+                        }
                     }
                 }
             }
@@ -933,6 +951,7 @@ namespace System.ServiceModel.Channels
                                                                                   operation.Name,
                                                                                   rpc.Reply.Headers.Action,
                                                                                   operation.ReplyAction));
+                            TerminateIfNecessary(ref rpc);
                             throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(error);
                         }
                     }
@@ -946,6 +965,7 @@ namespace System.ServiceModel.Channels
                         }
                         ThrowIfFaultUnderstood(rpc.Reply, fault, action, rpc.Reply.Version, rpc.Channel.GetProperty<FaultConverter>());
                         FaultException fe = rpc.Operation.FaultFormatter.Deserialize(fault, action);
+                        TerminateIfNecessary(ref rpc);
                         throw DiagnosticUtility.ExceptionUtility.ThrowHelperWarning(fe);
                     }
 
@@ -981,6 +1001,7 @@ namespace System.ServiceModel.Channels
                     }
                 }
             }
+            TerminateIfNecessary(ref rpc);
 
             if (WcfEventSource.Instance.ServiceChannelCallStopIsEnabled())
             {
@@ -992,6 +1013,15 @@ namespace System.ServiceModel.Channels
                 WcfEventSource.Instance.ServiceChannelCallStop(rpc.EventTraceActivity, rpc.Action,
                                             _clientRuntime.ContractName,
                                             remoteAddress);
+            }
+        }
+
+        private void TerminateIfNecessary(ref ProxyRpc rpc)
+        {
+            if (rpc.Operation.IsTerminating)
+            {
+                _terminatingOperationName = rpc.Operation.Name;
+                TerminatingOperationBehavior.AfterReply(ref rpc);
             }
         }
 
@@ -1288,28 +1318,12 @@ namespace System.ServiceModel.Channels
 
             if (_closeBinder)
             {
-                var asyncInnerChannel = InnerChannel as IAsyncCommunicationObject;
-                if (asyncInnerChannel != null)
-                {
-                    await asyncInnerChannel.CloseAsync(timeoutHelper.RemainingTime());
-                }
-                else
-                {
-                    InnerChannel.Close(timeoutHelper.RemainingTime());
-                }
+                await CloseOtherAsync(InnerChannel, timeoutHelper.RemainingTime());
             }
 
             if (_closeFactory)
             {
-                var asyncFactory = _factory as IAsyncCommunicationObject;
-                if (asyncFactory != null)
-                {
-                    await asyncFactory.CloseAsync(timeoutHelper.RemainingTime());
-                }
-                else
-                {
-                    _factory.Close(timeoutHelper.RemainingTime());
-                }
+                await CloseOtherAsync(_factory, timeoutHelper.RemainingTime());
             }
 
             CleanupChannelCollections();
@@ -1344,15 +1358,7 @@ namespace System.ServiceModel.Channels
 
             if (_openBinder)
             {
-                var asyncInnerChannel = InnerChannel as IAsyncCommunicationObject;
-                if (asyncInnerChannel != null)
-                {
-                    await asyncInnerChannel.OpenAsync(timeout);
-                }
-                else
-                {
-                    InnerChannel.Open(timeout);
-                }
+                await OpenOtherAsync(InnerChannel, timeout);
             }
 
             BindDuplexCallbacks();
@@ -2000,11 +2006,35 @@ namespace System.ServiceModel.Channels
                 _callOnce = callOnce;
                 _channel = channel;
                 _queue = new Queue<IWaiter>();
+
+                // Detect when the channel becomes unusable
+                ChannelIsAvailable = true;
+                _channel.Closing += (s, e) =>
+                {
+                    SetChannelUnavailable();
+                };
+
+                _channel.Faulted += (s, e) =>
+                {
+                    SetChannelUnavailable();
+                };
             }
 
             private object ThisLock
             {
                 get { return this; }
+            }
+
+            internal bool ChannelIsAvailable { get; private set; }
+
+            // Called when the channel becomes unusable during the open
+            // or waiting for queued waiters to complete.  This method
+            // ensures any waiters' WaitHandles are set so they complete
+            // rather than timing out.
+            private void SetChannelUnavailable()
+            {
+                ChannelIsAvailable = false;
+                SignalNext();
             }
 
             internal void CallOnce(TimeSpan timeout, CallOnceManager cascade)
@@ -2202,7 +2232,7 @@ namespace System.ServiceModel.Channels
 
                 private bool ShouldSignalNext
                 {
-                    get { return _isTimedOut && _isSignaled; }
+                    get { return (_isTimedOut || !_manager.ChannelIsAvailable) && _isSignaled; }
                 }
 
                 void IWaiter.Signal()
@@ -2226,12 +2256,15 @@ namespace System.ServiceModel.Channels
                 {
                     try
                     {
-                        if (!TimeoutHelper.WaitOne(_wait, timeout))
+                        // The wait can be ended by success, a timeout, or the
+                        // channel becoming unavailable for further use
+                        bool timedOut = !TimeoutHelper.WaitOne(_wait, timeout);
+                        if (timedOut || !_manager.ChannelIsAvailable)
                         {
                             bool signalNext;
                             lock (_manager.ThisLock)
                             {
-                                _isTimedOut = true;
+                                _isTimedOut = timedOut;
                                 signalNext = ShouldSignalNext;
                             }
                             if (signalNext)
@@ -2259,7 +2292,7 @@ namespace System.ServiceModel.Channels
 
             internal class AsyncWaiter : AsyncResult, IWaiter
             {
-                private static Action<object> s_timerCallback = new Action<object>(TimerCallback);
+                private static TimerCallback s_timeoutCallback = new TimerCallback(Fx.ThunkCallback<object>(TimeoutCallback));
 
                 private CallOnceManager _manager;
                 private TimeSpan _timeout;
@@ -2274,7 +2307,7 @@ namespace System.ServiceModel.Channels
 
                     if (timeout != TimeSpan.MaxValue)
                     {
-                        _timer = new Timer(new TimerCallback(s_timerCallback), this, timeout, TimeSpan.FromMilliseconds(-1));
+                        _timer = new Timer(s_timeoutCallback, this, timeout, TimeSpan.FromMilliseconds(-1));
                     }
                 }
 
@@ -2304,7 +2337,7 @@ namespace System.ServiceModel.Channels
                     }
                 }
 
-                private static void TimerCallback(object state)
+                private static void TimeoutCallback(object state)
                 {
                     AsyncWaiter _this = (AsyncWaiter)state;
                     _this.Complete(false, _this._manager._channel.GetOpenTimeoutException(_this._timeout));

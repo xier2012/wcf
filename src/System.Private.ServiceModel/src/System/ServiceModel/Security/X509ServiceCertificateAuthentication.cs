@@ -1,8 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.IdentityModel.Selectors;
 using System.Runtime;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
 namespace System.ServiceModel.Security
@@ -13,6 +17,8 @@ namespace System.ServiceModel.Security
         internal const X509RevocationMode DefaultRevocationMode = X509RevocationMode.Online;
         internal const StoreLocation DefaultTrustedStoreLocation = StoreLocation.CurrentUser;
         private static X509CertificateValidator s_defaultCertificateValidator;
+        // ASN.1 description: {iso(1) identified-organization(3) dod(6) internet(1) security(5) mechanisms(5) pkix(7) kp(3) serverAuth(1)}
+        static readonly Oid serverAuthOid = new Oid("1.3.6.1.5.5.7.3.1", "1.3.6.1.5.5.7.3.1");
 
         private X509CertificateValidationMode _certificateValidationMode = DefaultCertificateValidationMode;
         private X509RevocationMode _revocationMode = DefaultRevocationMode;
@@ -41,6 +47,7 @@ namespace System.ServiceModel.Security
                 {
                     bool useMachineContext = DefaultTrustedStoreLocation == StoreLocation.LocalMachine;
                     X509ChainPolicy chainPolicy = new X509ChainPolicy();
+                    chainPolicy.ApplicationPolicy.Add(serverAuthOid);
                     chainPolicy.RevocationMode = DefaultRevocationMode;
                     s_defaultCertificateValidator = X509CertificateValidator.CreateChainTrustValidator(useMachineContext, chainPolicy);
                 }
@@ -57,6 +64,13 @@ namespace System.ServiceModel.Security
             set
             {
                 X509CertificateValidationModeHelper.Validate(value);
+
+                if ((value == X509CertificateValidationMode.PeerTrust || value == X509CertificateValidationMode.PeerOrChainTrust) && 
+                    RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                {
+                    throw ExceptionHelper.PlatformNotSupported(SR.PeerTrustNotSupportedOnOSX);
+                }
+
                 ThrowIfImmutable();
                 _certificateValidationMode = value;
             }
@@ -110,7 +124,7 @@ namespace System.ServiceModel.Security
             }
             else if (_certificateValidationMode == X509CertificateValidationMode.PeerTrust)
             {
-                throw ExceptionHelper.PlatformNotSupported("X509CertificateValidationMode.PeerTrust is not supported");
+                validator = X509CertificateValidator.PeerTrust;
             }
             else if (_certificateValidationMode == X509CertificateValidationMode.Custom)
             {
@@ -120,6 +134,7 @@ namespace System.ServiceModel.Security
             {
                 bool useMachineContext = _trustedStoreLocation == StoreLocation.LocalMachine;
                 X509ChainPolicy chainPolicy = new X509ChainPolicy();
+                chainPolicy.ApplicationPolicy.Add(serverAuthOid);
                 chainPolicy.RevocationMode = _revocationMode;
                 if (_certificateValidationMode == X509CertificateValidationMode.ChainTrust)
                 {
@@ -127,7 +142,7 @@ namespace System.ServiceModel.Security
                 }
                 else
                 {
-                    throw ExceptionHelper.PlatformNotSupported("X509CertificateValidationMode.PeerTrust is not supported");
+                    validator = X509CertificateValidator.CreatePeerOrChainTrustValidator(useMachineContext, chainPolicy);
                 }
             }
             return (validator != null);

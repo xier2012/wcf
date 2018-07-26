@@ -13,34 +13,33 @@ namespace SharedPoolsOfWCFObjects
     /// <summary>
     /// This class provides a few Call*AndRecordStats() utility methods which will store and aggregate the timing of the delegates they invoke 
     /// 
-    /// Note: all Call*AndRecordStats() methods catch all exceptions coming from the delegates
-    /// However we don't want to miss the case when an unexpected exception happens for the calls that should never have exceptions
+    /// Note that there are 2 separate mechanisms to control how the exceptions are handled by these utility methods.
+    /// The first one is the boolean "hideExceptions" parameter to all Call*AndRecordStats methods where 'true' means completely ignore exceptions.
+    /// This is used by the scenarios where the exceptions are expected and should be ignored no matter what kind of test is running.
+    /// 
+    /// The second one is the Func<Exception, bool> exceptionHandler parameter which is typically controlled by the caller via generic TestParams.
+    /// This allows different level of tolerance for different test runs (e.g. no unexpected exceptions for Perf and some tolerance for Stress).
+    /// The boolean return value signifies if the exception is considered to be "handled" - e.g. no need to propagate the exception to the caller.
     /// </summary>
     public class CallStats
     {
+        public Func<Exception, bool> _exceptionHandler;
         public CallTimingStatsCollector SunnyDay { get; set; }
         public CallTimingStatsCollector RainyDay { get; set; }
 
-        public static int SunnyDaySamples = 1000000;
-        public static int RainyDaySamples = 10000;
-
-        public CallStats()
-            : this(SunnyDaySamples, RainyDaySamples, CallTimingStatsCollector.CalculateSomePercentiles, CallTimingStatsCollector.CalculateSomePercentiles)
+        public CallStats(int samples, int errorSamples, Func<Exception, bool> exceptionHandler)
+            : this(samples, errorSamples, exceptionHandler, CallTimingStatsCollector.CalculateSomePercentiles, CallTimingStatsCollector.CalculateSomePercentiles)
         {
         }
 
-        public CallStats(int samples, int errorSamples)
-            : this(samples, errorSamples, CallTimingStatsCollector.CalculateSomePercentiles, CallTimingStatsCollector.CalculateSomePercentiles)
-        {
-        }
-
-        public CallStats(int samples, int errorSamples, Func<long[], TimingPercentileStats> statsCalculator, Func<long[], TimingPercentileStats> errorStatsCalculator)
+        public CallStats(int samples, int errorSamples, Func<Exception, bool> exceptionHandler, Func<long[], TimingPercentileStats> statsCalculator, Func<long[], TimingPercentileStats> errorStatsCalculator)
         {
             SunnyDay = new CallTimingStatsCollector(samples, statsCalculator);
             RainyDay = new CallTimingStatsCollector(errorSamples, errorStatsCalculator);
+            _exceptionHandler = exceptionHandler;
         }
 
-        public void CallActionAndRecordStats(Action action)
+        public void CallActionAndRecordStats(Action action, bool hideExceptions)
         {
             Stopwatch sw = new Stopwatch();
             try
@@ -52,10 +51,17 @@ namespace SharedPoolsOfWCFObjects
             catch (Exception e)
             {
                 RainyDay.AddCallTiming(sw.ElapsedTicks);
+                if (!hideExceptions)
+                {
+                    if (!_exceptionHandler(e))
+                    {
+                        throw;
+                    }
+                }
             }
         }
 
-        public T CallFuncAndRecordStats<T>(Func<T> func)
+        public T CallFuncAndRecordStats<T>(Func<T> func, bool hideExceptions = false)
         {
             T result = default(T);
             Stopwatch sw = new Stopwatch();
@@ -68,11 +74,18 @@ namespace SharedPoolsOfWCFObjects
             catch (Exception e)
             {
                 RainyDay.AddCallTiming(sw.ElapsedTicks);
+                if (!hideExceptions)
+                {
+                    if (!_exceptionHandler(e))
+                    {
+                        throw;
+                    }
+                }
             }
             return result;
         }
 
-        public T CallFuncAndRecordStats<T, P>(Func<P, T> func, P param)
+        public T CallFuncAndRecordStats<T, P>(Func<P, T> func, P param, bool hideExceptions = false)
         {
             T result = default(T);
             Stopwatch sw = new Stopwatch();
@@ -85,11 +98,18 @@ namespace SharedPoolsOfWCFObjects
             catch (Exception e)
             {
                 RainyDay.AddCallTiming(sw.ElapsedTicks);
+                if (!hideExceptions)
+                {
+                    if (!_exceptionHandler(e))
+                    {
+                        throw;
+                    }
+                }
             }
             return result;
         }
 
-        public async Task CallAsyncFuncAndRecordStatsAsync(Func<Task> func)
+        public async Task CallAsyncFuncAndRecordStatsAsync(Func<Task> func, bool hideExceptions)
         {
             Stopwatch sw = new Stopwatch();
             try
@@ -101,21 +121,37 @@ namespace SharedPoolsOfWCFObjects
             catch (Exception e)
             {
                 RainyDay.AddCallTiming(sw.ElapsedTicks);
+                if (!hideExceptions)
+                {
+                    if (!_exceptionHandler(e))
+                    {
+                        throw;
+                    }
+                }
             }
         }
 
-        public async Task CallAsyncFuncAndRecordStatsAsync<P>(Func<P, Task> func, P param)
+        public async Task<R> CallAsyncFuncAndRecordStatsAsync<R>(Func<Task<R>> func, bool hideExceptions)
         {
             Stopwatch sw = new Stopwatch();
             try
             {
                 sw.Restart();
-                await func(param);
+                var result = await func();
                 SunnyDay.AddCallTiming(sw.ElapsedTicks);
+                return result;
             }
             catch (Exception e)
             {
                 RainyDay.AddCallTiming(sw.ElapsedTicks);
+                if (!hideExceptions)
+                {
+                    if (!_exceptionHandler(e))
+                    {
+                        throw;
+                    }
+                }
+                return default(R);
             }
         }
     }
@@ -174,6 +210,19 @@ namespace SharedPoolsOfWCFObjects
             }
         }
 
+        public long[] CurrentTimings
+        {
+            get
+            {
+                long[] copy = new long[_timings.Length];
+                for (int i = 0; i < _timings.Length; i++)
+                {
+                    copy[i] = _timings[i];
+                }
+                return copy;
+            }
+        }
+
         public static TimingPercentileStats CalculateSomePercentiles(long[] timingArr)
         {
             var stats = new TimingPercentileStats()
@@ -188,15 +237,19 @@ namespace SharedPoolsOfWCFObjects
                 if (stats.Centile[i] < 0)
                 {
                     int lowestXPctNum = (timingArr.Length * -1 * stats.Centile[i]) / 100;
-                    stats.AvgTiming[i] = timingArr.OrderBy(t1 => t1).Take(lowestXPctNum).Sum(t2 => t2) / lowestXPctNum;
+                    if (lowestXPctNum != 0)
+                    {
+                        stats.AvgTiming[i] = timingArr.OrderBy(t1 => t1).Take(lowestXPctNum).Sum(t2 => t2) / lowestXPctNum;
+                    }
                 }
                 else
                 {
                     int topXPctNum = (timingArr.Length * stats.Centile[i]) / 100;
-                    stats.AvgTiming[i] = timingArr.OrderByDescending(t1 => t1).Take(topXPctNum).Sum(t2 => t2) / topXPctNum;
+                    if (topXPctNum != 0)
+                    {
+                        stats.AvgTiming[i] = timingArr.OrderByDescending(t1 => t1).Take(topXPctNum).Sum(t2 => t2) / topXPctNum;
+                    }
                 }
-
-                //Console.WriteLine(String.Format("Percentile {0}, time {1}", stats.Centile[i], stats.AvgTiming[i]));
             }
 
             return stats;

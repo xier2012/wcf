@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.ComponentModel;
 using System.Diagnostics.Contracts;
@@ -15,6 +17,7 @@ namespace System.ServiceModel.Channels
     {
         private bool _allowCookies;
         private AuthenticationSchemes _authenticationScheme;
+        private bool _bypassProxyOnLocal;
         private bool _decompressionEnabled;
         private HostNameComparisonMode _hostNameComparisonMode;
         private bool _keepAliveEnabled;
@@ -22,15 +25,15 @@ namespace System.ServiceModel.Channels
         private int _maxBufferSize;
         private bool _maxBufferSizeInitialized;
         private string _method;
+        private Uri _proxyAddress;
+        private AuthenticationSchemes _proxyAuthenticationScheme;
         private string _realm;
         private TimeSpan _requestInitializationTimeout;
         private TransferMode _transferMode;
         private bool _unsafeConnectionNtlmAuthentication;
         private bool _useDefaultWebProxy;
         private WebSocketTransportSettings _webSocketSettings;
-#if !FEATURE_NETNATIVE
         private ExtendedProtectionPolicy _extendedProtectionPolicy;
-#endif // !FEATURE_NETNATIVE
         private HttpMessageHandlerFactory _httpMessageHandlerFactory;
         private int _maxPendingAccepts;
 
@@ -39,12 +42,15 @@ namespace System.ServiceModel.Channels
         {
             _allowCookies = HttpTransportDefaults.AllowCookies;
             _authenticationScheme = HttpTransportDefaults.AuthenticationScheme;
+            _bypassProxyOnLocal = HttpTransportDefaults.BypassProxyOnLocal;
             _decompressionEnabled = HttpTransportDefaults.DecompressionEnabled;
             _hostNameComparisonMode = HttpTransportDefaults.HostNameComparisonMode;
             _keepAliveEnabled = HttpTransportDefaults.KeepAliveEnabled;
             _maxBufferSize = TransportDefaults.MaxBufferSize;
             _maxPendingAccepts = HttpTransportDefaults.DefaultMaxPendingAccepts;
             _method = string.Empty;
+            _proxyAuthenticationScheme = HttpTransportDefaults.ProxyAuthenticationScheme;
+            _proxyAddress = HttpTransportDefaults.ProxyAddress;
             _realm = HttpTransportDefaults.Realm;
             _requestInitializationTimeout = HttpTransportDefaults.RequestInitializationTimeout;
             _transferMode = HttpTransportDefaults.TransferMode;
@@ -58,6 +64,7 @@ namespace System.ServiceModel.Channels
         {
             _allowCookies = elementToBeCloned._allowCookies;
             _authenticationScheme = elementToBeCloned._authenticationScheme;
+            _bypassProxyOnLocal = elementToBeCloned._bypassProxyOnLocal;
             _decompressionEnabled = elementToBeCloned._decompressionEnabled;
             _hostNameComparisonMode = elementToBeCloned._hostNameComparisonMode;
             _inheritBaseAddressSettings = elementToBeCloned.InheritBaseAddressSettings;
@@ -66,16 +73,16 @@ namespace System.ServiceModel.Channels
             _maxBufferSizeInitialized = elementToBeCloned._maxBufferSizeInitialized;
             _maxPendingAccepts = elementToBeCloned._maxPendingAccepts;
             _method = elementToBeCloned._method;
+            _proxyAddress = elementToBeCloned._proxyAddress;
+            _proxyAuthenticationScheme = elementToBeCloned._proxyAuthenticationScheme;
             _realm = elementToBeCloned._realm;
             _requestInitializationTimeout = elementToBeCloned._requestInitializationTimeout;
             _transferMode = elementToBeCloned._transferMode;
             _unsafeConnectionNtlmAuthentication = elementToBeCloned._unsafeConnectionNtlmAuthentication;
             _useDefaultWebProxy = elementToBeCloned._useDefaultWebProxy;
             _webSocketSettings = elementToBeCloned._webSocketSettings.Clone();
-#if !FEATURE_NETNATIVE
             _extendedProtectionPolicy = elementToBeCloned.ExtendedProtectionPolicy;
-#endif // !FEATURE_NETNATIVE
-            this.MessageHandlerFactory = elementToBeCloned.MessageHandlerFactory;
+            MessageHandlerFactory = elementToBeCloned.MessageHandlerFactory;
         }
 
         [DefaultValue(HttpTransportDefaults.AllowCookies)]
@@ -102,6 +109,19 @@ namespace System.ServiceModel.Channels
             set
             {
                 _authenticationScheme = value;
+            }
+        }
+
+        [DefaultValue(HttpTransportDefaults.BypassProxyOnLocal)]
+        public bool BypassProxyOnLocal
+        {
+            get
+            {
+                return _bypassProxyOnLocal;
+            }
+            set
+            {
+                _bypassProxyOnLocal = value;
             }
         }
 
@@ -144,7 +164,6 @@ namespace System.ServiceModel.Channels
             }
         }
 
-#if !FEATURE_NETNATIVE
         public ExtendedProtectionPolicy ExtendedProtectionPolicy
         {
             get
@@ -167,7 +186,6 @@ namespace System.ServiceModel.Channels
                 _extendedProtectionPolicy = value;
             }
         }
-#endif // !FEATURE_NETNATIVE
 
         // MB#26970: used by MEX to ensure that we don't conflict on base-address scoped settings
         internal bool InheritBaseAddressSettings
@@ -266,6 +284,40 @@ namespace System.ServiceModel.Channels
                 }
 
                 _method = value;
+            }
+        }
+
+        [DefaultValue(HttpTransportDefaults.ProxyAddress)]
+        [TypeConverter(typeof(UriTypeConverter))]
+        public Uri ProxyAddress
+        {
+            get
+            {
+                return _proxyAddress;
+            }
+            set
+            {
+                _proxyAddress = value;
+            }
+        }
+
+        [DefaultValue(HttpTransportDefaults.ProxyAuthenticationScheme)]
+        public AuthenticationSchemes ProxyAuthenticationScheme
+        {
+            get
+            {
+                return _proxyAuthenticationScheme;
+            }
+
+            set
+            {
+                if (!value.IsSingleton())
+                {
+                    throw DiagnosticUtility.ExceptionUtility.ThrowHelperArgument(nameof(value), SR.Format(SR.HttpProxyRequiresSingleAuthScheme,
+                        value));
+                }
+
+                _proxyAuthenticationScheme = value;
             }
         }
 
@@ -369,11 +421,16 @@ namespace System.ServiceModel.Channels
             }
         }
 
+        [DefaultValue(HttpTransportDefaults.UseDefaultWebProxy)]
         public bool UseDefaultWebProxy
         {
             get
             {
                 return _useDefaultWebProxy;
+            }
+            set
+            {
+                _useDefaultWebProxy = value;
             }
         }
 
@@ -417,12 +474,10 @@ namespace System.ServiceModel.Channels
             {
                 return (T)(object)this.TransferMode;
             }
-#if !FEATURE_NETNATIVE
             else if (typeof(T) == typeof(ExtendedProtectionPolicy))
             {
                 return (T)(object)this.ExtendedProtectionPolicy;
             }
-#endif //!FEATURE_NETNATIVE
             else if (typeof(T) == typeof(ITransportCompressionSupport))
             {
                 return (T)(object)new TransportCompressionSupportHelper();

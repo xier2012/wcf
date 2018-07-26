@@ -1,14 +1,17 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System;
 using System.ServiceModel;
 using System.Xml;
+using Infrastructure.Common;
 using Xunit;
 
 public static class NetTcpBindingTest
 {
-    [Theory]
+    [WcfTheory]
     [InlineData(SecurityMode.None)]
     [InlineData(SecurityMode.Transport)]
     public static void Ctor_Default_Initializes_Properties(SecurityMode securityMode)
@@ -24,7 +27,7 @@ public static class NetTcpBindingTest
         Assert.Equal<SecurityMode>(securityMode, binding.Security.Mode);
     }
 
-    [Theory]
+    [WcfTheory]
     [InlineData(TransferMode.Buffered)]
     [InlineData(TransferMode.Streamed)]
     [InlineData(TransferMode.StreamedRequest)]
@@ -36,7 +39,7 @@ public static class NetTcpBindingTest
         Assert.Equal<TransferMode>(mode, binding.TransferMode);
     }
 
-    [Theory]
+    [WcfTheory]
     [InlineData(0)]
     [InlineData(Int64.MaxValue)]
     public static void MaxBufferPoolSize_Property_Sets(long value)
@@ -46,7 +49,7 @@ public static class NetTcpBindingTest
         Assert.Equal<long>(value, binding.MaxBufferPoolSize);
     }
 
-    [Theory]
+    [WcfTheory]
     [InlineData(1)]
     [InlineData(int.MaxValue)]
     public static void MaxBufferSize_Property_Sets(int value)
@@ -56,7 +59,7 @@ public static class NetTcpBindingTest
         Assert.Equal<int>(value, binding.MaxBufferSize);
     }
 
-    [Theory]
+    [WcfTheory]
     [InlineData(0)]
     [InlineData(-1)]
     public static void MaxBufferSize_Property_Set_With_Invalid_Value_Throws(int value)
@@ -65,7 +68,7 @@ public static class NetTcpBindingTest
         Assert.Throws<ArgumentOutOfRangeException>(() => binding.MaxBufferSize = value);
     }
 
-    [Theory]
+    [WcfTheory]
     [InlineData(1)]
     [InlineData(Int64.MaxValue)]
     public static void MaxReceivedMessageSize_Property_Sets(long value)
@@ -75,7 +78,7 @@ public static class NetTcpBindingTest
         Assert.Equal<long>(value, binding.MaxReceivedMessageSize);
     }
 
-    [Theory]
+    [WcfTheory]
     [InlineData(0)]
     [InlineData(-1)]
     public static void MaxReceivedMessageSize_Property_Set_Invalid_Value_Throws(long value)
@@ -84,7 +87,7 @@ public static class NetTcpBindingTest
         Assert.Throws<ArgumentOutOfRangeException>(() => binding.MaxReceivedMessageSize = value);
     }
 
-    [Fact]
+    [WcfFact]
     public static void Security_Property_Sets()
     {
         NetTcpBinding binding = new NetTcpBinding();
@@ -93,7 +96,7 @@ public static class NetTcpBindingTest
         Assert.Equal<NetTcpSecurity>(security, binding.Security);
     }
 
-    [Fact]
+    [WcfFact]
     public static void Security_Property_Set_Null_Throws()
     {
         NetTcpBinding binding = new NetTcpBinding();

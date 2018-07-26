@@ -1,13 +1,16 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System;
 using System.ServiceModel.Channels;
+using Infrastructure.Common;
 using Xunit;
 
 public static class HttpRequestMessagePropertyTest
 {
-    [Fact]
+    [WcfFact]
     public static void Default_Ctor_Initializes_Properties()
     {
         HttpRequestMessageProperty requestMsgProperty = new HttpRequestMessageProperty();
@@ -18,7 +21,7 @@ public static class HttpRequestMessagePropertyTest
         Assert.False(requestMsgProperty.SuppressEntityBody);
     }
 
-    [Fact]
+    [WcfFact]
     public static void CreateCopy_Copies_Properties()
     {
         const string testKeyName = "testKey";
@@ -42,13 +45,13 @@ public static class HttpRequestMessagePropertyTest
         Assert.Equal<string>(original.Headers[testKeyName], copy.Headers[testKeyName]);
     }
 
-    [Fact]
+    [WcfFact]
     public static void Name_Property()
     {
         Assert.Equal<string>("httpRequest", HttpRequestMessageProperty.Name);
     }
 
-    [Fact]
+    [WcfFact]
     public static void Method_Property_Sets()
     {
         const string newMethod = "PUT";
@@ -57,14 +60,14 @@ public static class HttpRequestMessagePropertyTest
         Assert.Equal<string>(newMethod, requestMsgProperty.Method);
     }
 
-    [Fact]
+    [WcfFact]
     public static void Method_Property_Set_Null_Throws()
     {
         HttpRequestMessageProperty requestMsgProperty = new HttpRequestMessageProperty();
         Assert.Throws<ArgumentNullException>(() => requestMsgProperty.Method = null);
     }
 
-    [Fact]
+    [WcfFact]
     public static void QueryString_Property_Sets()
     {
         const string newQueryString = "name=Mary";
@@ -73,7 +76,7 @@ public static class HttpRequestMessagePropertyTest
         Assert.Equal<string>(newQueryString, requestMsgProperty.QueryString);
     }
 
-    [Fact]
+    [WcfFact]
     public static void QueryString_Property_Set_Null_Throws()
     {
         HttpRequestMessageProperty requestMsgProperty = new HttpRequestMessageProperty();

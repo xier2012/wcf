@@ -1,142 +1,253 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+
+using System;
+using System.ServiceModel;
+using System.Security.Cryptography.X509Certificates;
 
 using Infrastructure.Common;
 
 public static partial class Endpoints
 {
+    private static string GetEndpointAddress(string endpoint, string protocol = "http")
+    {
+        return ServiceUtilHelper.GetEndpointAddress(endpoint, protocol);
+    }
+
+    #region HTTP Addresses
     // HTTP Addresses
     public static string DefaultCustomHttp_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.DefaultCustomHttpResource"); }
+        get { return GetEndpointAddress("DefaultCustomHttp.svc//default-custom-http"); }
     }
 
     public static string HttpBaseAddress_Basic
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.BasicHttpResource"); }
+        get { return GetEndpointAddress("BasicHttp.svc//Basic"); }
+    }
+
+    // Endpoint that relies on post-1.1.0 features
+    public static string HttpBaseAddress_4_4_0_Basic
+    {
+        get { return GetEndpointAddress("BasicHttp_4_4_0.svc//Basic"); }
+    }
+    
+    public static string HttpBaseAddress_Basic_Soap
+    {
+        get { return GetEndpointAddress("BasicHttpSoap.svc//Basic"); }
     }
 
     public static string HttpBaseAddress_NetHttp
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.NetHttpResource"); }
+        get { return GetEndpointAddress("NetHttp.svc//NetHttp"); }
+    }
+
+    public static string HttpBaseAddress_NetHttpWebSockets
+    {
+        get { return GetEndpointAddress("NetHttpWebSockets.svc//NetHttpWebSockets"); }
     }
 
     public static string HttpSoap11_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.HttpSoap11Resource"); }
+        get { return GetEndpointAddress("HttpSoap11.svc//http-soap11"); }
     }
+	
+	public static string HttpSoap11WSA2004_Address
+	{
+		get { return GetEndpointAddress("HttpSoap11WSA2004.svc//http-Soap11WSA2004"); }
+	}
 
     public static string HttpSoap12_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.HttpSoap12Resource"); }
+        get { return GetEndpointAddress("HttpSoap12.svc//http-soap12"); }
     }
 
+	public static string HttpSoap12WSA2004_Address
+	{
+		get { return GetEndpointAddress("HttpSoap12WSA2004.svc//http-Soap12WSA2004"); }
+	}
+	
     public static string HttpBinary_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.HttpBinaryResource"); }
+        get { return GetEndpointAddress("HttpBinary.svc//http-binary"); }
     }
 
-    public static string NetHttpWebSocketTransport_Address
-    {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.WebSocketTransportResource"); }
-    }
-
-    public static string NetHttpDuplexWebSocket_Address
-    {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.DuplexWebSocketResource"); }
-    }
-    
     public static string HttpProtocolError_Address
     {
         get { return Endpoints.DefaultCustomHttp_Address + "/UnknownProtocolUrl.htm"; }
     }
 
+    public static string HttpBaseAddress_ChannelExtensibility
+    {
+        get { return GetEndpointAddress("ChannelExtensibility.svc//ChannelExtensibility"); }
+    }
+
+    public static string UnderstoodHeaders
+    {
+        get { return GetEndpointAddress("UnderstoodHeaders.svc//UnderstoodHeaders"); }
+    }
+
+    public static string XmlSFAttribute_Address
+    {
+        get { return GetEndpointAddress("XmlSFAttribute.svc//XmlSFAttribute"); }
+    }
+
+    public static string BasciHttpRpcEncSingleNs_Address
+    {
+        get { return GetEndpointAddress("BasicHttpRpcEncSingleNs.svc//Basic"); }
+    }
+
+    public static string BasicHttpRpcLitSingleNs_Address
+    {
+        get { return GetEndpointAddress("BasicHttpRpcLitSingleNs.svc//Basic"); }
+    }
+
+    public static string BasicHttpDocLitSingleNs_Address
+    {
+        get { return GetEndpointAddress("BasicHttpDocLitSingleNs.svc//Basic"); }
+    }
+
+    public static string BasicHttpRpcEncDualNs_Address
+    {
+        get { return GetEndpointAddress("BasicHttpRpcEncDualNs.svc//Basic"); }
+    }
+
+    public static string BasicHttpRpcLitDualNs_Address
+    {
+        get { return GetEndpointAddress("BasicHttpRpcLitDualNs.svc//Basic"); }
+    }
+
+    public static string BasicHttpDocLitDualNs_Address
+    {
+        get { return GetEndpointAddress("BasicHttpDocLitDualNs.svc//Basic"); }
+    }
+
+    #region WebSocket Addresses
+    public static string NetHttpWebSocketTransport_Address
+    {
+        get { return GetEndpointAddress("WebSocketTransport.svc//http-requestreplywebsockets-transportusagealways", protocol: "ws"); }
+    }
+
+    public static string NetHttpDuplexWebSocket_Address
+    {
+        get { return GetEndpointAddress("DuplexWebSocket.svc//http-defaultduplexwebsockets", protocol: "ws"); }
+    }
+
     public static string WebSocketHttpDuplexBinaryStreamed_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.WebSocketHttpDuplexBinaryStreamedResource"); }
+        get { return GetEndpointAddress("WebSocketHttpDuplexBinaryStreamed.svc//WebSocketHttpDuplexBinaryStreamedResource", protocol: "ws"); }
     }
 
     public static string WebSocketHttpRequestReplyBinaryStreamed_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.WebSocketHttpRequestReplyBinaryStreamedResource"); }
+        get { return GetEndpointAddress("WebSocketHttpRequestReplyBinaryStreamed.svc//WebSocketHttpRequestReplyBinaryStreamedResource", protocol: "ws"); }
     }
 
     public static string WebSocketHttpRequestReplyTextStreamed_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.WebSocketHttpRequestReplyTextStreamedResource"); }
+        get { return GetEndpointAddress("WebSocketHttpRequestReplyTextStreamed.svc//WebSocketHttpRequestReplyTextStreamedResource", protocol: "ws"); }
     }
 
     public static string WebSocketHttpDuplexTextStreamed_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.WebSocketHttpDuplexTextStreamedResource"); }
+        get { return GetEndpointAddress("WebSocketHttpDuplexTextStreamed.svc//WebSocketHttpDuplexTextStreamedResource", protocol: "ws"); }
     }
 
     public static string WebSocketHttpRequestReplyTextBuffered_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.WebSocketHttpRequestReplyTextBufferedResource"); }
+        get { return GetEndpointAddress("WebSocketHttpRequestReplyTextBuffered.svc//WebSocketHttpRequestReplyTextBufferedResource", protocol: "ws"); }
     }
 
     public static string WebSocketHttpRequestReplyBinaryBuffered_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.WebSocketHttpRequestReplyBinaryBufferedResource"); }
+        get { return GetEndpointAddress("WebSocketHttpRequestReplyBinaryBuffered.svc//WebSocketHttpRequestReplyBinaryBufferedResource", protocol: "ws"); }
     }
 
     public static string WebSocketHttpDuplexTextBuffered_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.WebSocketHttpDuplexTextBufferedResource"); }
+        get { return GetEndpointAddress("WebSocketHttpDuplexTextBuffered.svc//WebSocketHttpDuplexTextBufferedResource", protocol: "ws"); }
     }
 
     public static string WebSocketHttpDuplexBinaryBuffered_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.WebSocketHttpDuplexBinaryBufferedResource"); }
+        get { return GetEndpointAddress("WebSocketHttpDuplexBinaryBuffered.svc//WebSocketHttpDuplexBinaryBufferedResource", protocol: "ws"); }
     }
 
+    public static string WebSocketHttpVerifyWebSocketsUsed_Address
+    {
+        get { return GetEndpointAddress("WebSocketHttpVerifyWebSocketsUsed.svc//WebSocketHttpVerifyWebSocketsUsed", protocol: "ws"); }
+    }
+    #endregion WebSocket Addresses
+
+    #region Service Contract Addresses
     public static string ServiceContractAsyncIntOut_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.ServiceContractAsyncIntOutResource"); }
+        get { return GetEndpointAddress("ServiceContractAsyncIntOut.svc//ServiceContractIntOut"); }
     }
 
     public static string ServiceContractAsyncUniqueTypeOut_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.ServiceContractAsyncUniqueTypeOutResource"); }
+        get { return GetEndpointAddress("ServiceContractAsyncUniqueTypeOut.svc//ServiceContractUniqueTypeOut"); }
     }
 
     public static string ServiceContractAsyncIntRef_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.ServiceContractAsyncIntRefResource"); }
+        get { return GetEndpointAddress("ServiceContractAsyncIntRef.svc//ServiceContractIntRef"); }
     }
 
     public static string ServiceContractAsyncUniqueTypeRef_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.ServiceContractAsyncUniqueTypeRefResource"); }
+        get { return GetEndpointAddress("ServiceContractAsyncUniqueTypeRef.svc//ServiceContractAsyncUniqueTypeRef"); }
     }
 
     public static string ServiceContractSyncUniqueTypeOut_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.ServiceContractSyncUniqueTypeOutResource"); }
+        get { return GetEndpointAddress("ServiceContractSyncUniqueTypeOut.svc//ServiceContractUniqueTypeOutSync"); }
     }
 
     public static string ServiceContractSyncUniqueTypeRef_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.ServiceContractSyncUniqueTypeRefResource"); }
+        get { return GetEndpointAddress("ServiceContractSyncUniqueTypeRef.svc//ServiceContractUniqueTypeRefSync"); }
     }
 
+    public static string DataContractResolver_Address
+    {
+        get { return GetEndpointAddress("DataContractResolver.svc//DataContractResolver"); }
+    }
+
+    #endregion Service Contract Addresses
+
+    #region Custom Message Encoder Addresses
+
+    public static string CustomTextEncoderBuffered_Address
+    {
+        get { return GetEndpointAddress("CustomTextEncoderBuffered.svc//http-customtextencoder"); }
+    }
+
+    public static string CustomTextEncoderStreamed_Address
+    {
+        get { return GetEndpointAddress("CustomTextEncoderStreamed.svc//http-customtextencoder-streamed"); }
+    }
+    #endregion Custom Message Encoder Addresses
+    #endregion HTTP Addresses
+
+    #region HTTPS Addresses
     // HTTPS Addresses
     public static string Https_BasicAuth_Address
     {
         get
         {
-            BridgeClientCertificateManager.InstallRootCertificateFromBridge();
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.BasicAuthResource");
-        } 
+            return GetEndpointAddress("BasicAuth.svc/https-basic", protocol: "https");
+        }
     }
 
     public static string Https_DigestAuth_Address
     {
         get
         {
-            BridgeClientCertificateManager.InstallRootCertificateFromBridge();
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.HttpsDigestResource");
+            return GetEndpointAddress("DigestAuthentication/HttpsDigest.svc/https-digest", protocol: "https");
         }
     }
 
@@ -144,7 +255,7 @@ public static partial class Endpoints
     {
         get
         {
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.HttpDigestNoDomainResource");
+            return GetEndpointAddress("HttpDigestNoDomain.svc/http-digest-nodomain");
         }
     }
 
@@ -152,8 +263,7 @@ public static partial class Endpoints
     {
         get
         {
-            BridgeClientCertificateManager.InstallRootCertificateFromBridge();
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.HttpsNtlmResource");
+            return GetEndpointAddress("WindowAuthenticationNtlm/HttpsNtlm.svc//https-ntlm", protocol: "https");
         }
     }
 
@@ -161,8 +271,7 @@ public static partial class Endpoints
     {
         get
         {
-            BridgeClientCertificateManager.InstallRootCertificateFromBridge();
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.HttpsWindowsResource");
+            return GetEndpointAddress("WindowAuthenticationNegotiate/HttpsWindows.svc/https-windows", protocol: "https");
         }
     }
 
@@ -170,9 +279,7 @@ public static partial class Endpoints
     {
         get
         {
-            BridgeClientCertificateManager.InstallRootCertificateFromBridge();
-            BridgeClientCertificateManager.InstallLocalCertificateFromBridge();
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.HttpsClientCertificateResource");
+            return GetEndpointAddress("ClientCertificateAccepted/HttpsClientCertificate.svc/https-client-certificate", protocol: "https");
         }
     }
 
@@ -180,8 +287,7 @@ public static partial class Endpoints
     {
         get
         {
-            BridgeClientCertificateManager.InstallRootCertificateFromBridge();
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.HttpWindowsResource");
+            return GetEndpointAddress("WindowAuthenticationNegotiate/HttpWindows.svc/http-windows");
         }
     }
 
@@ -189,8 +295,7 @@ public static partial class Endpoints
     {
         get
         {
-            BridgeClientCertificateManager.InstallRootCertificateFromBridge();
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.BasicHttpsResource");
+            return GetEndpointAddress("BasicHttps.svc//basicHttps", protocol: "https");
         }
     }
 
@@ -198,8 +303,7 @@ public static partial class Endpoints
     {
         get
         {
-            BridgeClientCertificateManager.InstallRootCertificateFromBridge();
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.HttpsSoap11Resource");
+            return GetEndpointAddress("HttpsSoap11.svc//https-soap11", protocol: "https");
         }
     }
 
@@ -207,17 +311,48 @@ public static partial class Endpoints
     {
         get
         {
-            BridgeClientCertificateManager.InstallRootCertificateFromBridge();
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.HttpsSoap12Resource");
+            return GetEndpointAddress("HttpsSoap12.svc//https-soap12", protocol: "https");
         }
     }
 
+    public static string HttpBaseAddress_NetHttps
+    {
+        get
+        {
+            return GetEndpointAddress("NetHttps.svc//NetHttps", protocol: "https");
+        }
+    }
+
+    public static string HttpBaseAddress_NetHttpsWebSockets
+    {
+        get
+        {
+            return GetEndpointAddress("NetHttpsWebSockets.svc//NetHttpsWebSockets", protocol: "https");
+        }
+    }
+
+    public static string Https_SecModeTrans_ClientCredTypeNone_ServerCertValModePeerTrust_Address
+    {
+        get
+        {
+            return GetEndpointAddress("HttpsCertValModePeerTrust.svc//https-server-cert-valmode-peertrust", protocol: "https");
+        }
+    }
+
+    public static string Https_SecModeTrans_ClientCredTypeNone_ServerCertValModeChainTrust_Address
+    {
+        get
+        {
+            return GetEndpointAddress("HttpsCertValModeChainTrust.svc//https-server-cert-valmode-chaintrust", protocol: "https");
+        }
+    }
+
+    #region Secure WebSocket Addresses
     public static string WebSocketHttpsDuplexBinaryStreamed_Address
     {
         get
         {
-            BridgeClientCertificateManager.InstallRootCertificateFromBridge();
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.WebSocketHttpsDuplexBinaryStreamedResource");
+            return GetEndpointAddress("WebSocketHttpsDuplexBinaryStreamed.svc//WebSocketHttpsDuplexBinaryStreamedResource", protocol: "wss");
         }
     }
 
@@ -225,8 +360,7 @@ public static partial class Endpoints
     {
         get
         {
-            BridgeClientCertificateManager.InstallRootCertificateFromBridge();
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.WebSocketHttpsDuplexTextStreamedResource");
+            return GetEndpointAddress("WebSocketHttpsDuplexTextStreamed.svc//WebSocketHttpsDuplexTextStreamedResource", protocol: "wss");
         }
     }
 
@@ -234,8 +368,7 @@ public static partial class Endpoints
     {
         get
         {
-            BridgeClientCertificateManager.InstallRootCertificateFromBridge();
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.WebSocketHttpsRequestReplyBinaryBufferedResource");
+            return GetEndpointAddress("WebSocketHttpsRequestReplyBinaryBuffered.svc//WebSocketHttpsRequestReplyBinaryBufferedResource", protocol: "wss");
         }
     }
 
@@ -243,8 +376,7 @@ public static partial class Endpoints
     {
         get
         {
-            BridgeClientCertificateManager.InstallRootCertificateFromBridge();
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.WebSocketHttpsRequestReplyTextBufferedResource");
+            return GetEndpointAddress("WebSocketHttpsRequestReplyTextBuffered.svc//WebSocketHttpsRequestReplyTextBufferedResource", protocol: "wss");
         }
     }
 
@@ -252,8 +384,7 @@ public static partial class Endpoints
     {
         get
         {
-            BridgeClientCertificateManager.InstallRootCertificateFromBridge();
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.WebSocketHttpsDuplexBinaryBufferedResource");
+            return GetEndpointAddress("WebSocketHttpsDuplexBinaryBuffered.svc//WebSocketHttpsDuplexBinaryBufferedResource", protocol: "wss");
         }
     }
 
@@ -261,28 +392,34 @@ public static partial class Endpoints
     {
         get
         {
-            BridgeClientCertificateManager.InstallRootCertificateFromBridge();
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.WebSocketHttpsDuplexTextBufferedResource");
+            return GetEndpointAddress("WebSocketHttpsDuplexTextBuffered.svc//WebSocketHttpsDuplexTextBufferedResource", protocol: "wss");
         }
     }
+    #endregion Secure WebSocket Addresses
+    #endregion  HTTPS Addresses
 
+    #region net.tcp Addresses
     // net.tcp Addresses
     public static string Tcp_DefaultBinding_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.TcpDefaultResource"); }
+        get { return GetEndpointAddress("TcpDefault.svc//tcp-default", protocol: "net.tcp"); }
     }
 
     public static string Tcp_NoSecurity_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.TcpNoSecurityResource"); }
+        get { return GetEndpointAddress("TcpNoSecurity.svc//tcp-nosecurity", protocol: "net.tcp"); }
+    }
+
+    public static string Tcp_Streamed_NoSecurity_Address
+    {
+        get { return GetEndpointAddress("TcpStreamedNoSecurity.svc//tcp-streamed-nosecurity", protocol: "net.tcp"); }
     }
 
     public static string Tcp_VerifyDNS_Address
     {
         get
         {
-            BridgeClientCertificateManager.InstallLocalCertificateFromBridge(); 
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.TcpVerifyDNSResource");
+            return GetEndpointAddress("TcpVerifyDNS.svc//tcp-VerifyDNS", protocol: "net.tcp");
         }
     }
 
@@ -290,7 +427,7 @@ public static partial class Endpoints
     {
         get
         {
-            return BridgeClient.GetResourceHostName("WcfService.TestResources.TcpVerifyDNSResource");
+            return ServiceUtilHelper.ServiceHostName;
         }
     }
 
@@ -298,7 +435,23 @@ public static partial class Endpoints
     {
         get
         {
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.TcpExpiredServerCertResource");
+            return GetEndpointAddress("TcpExpiredServerCert.svc//tcp-ExpiredServerCert", protocol: "net.tcp");
+        }
+    }
+
+    public static string Tcp_InvalidEkuServerCertResource_HostName
+    {
+        get
+        {
+            return ServiceUtilHelper.ServiceHostName;
+        }
+    }
+
+    public static string Tcp_InvalidEkuServerCertResource_Address
+    {
+        get
+        {
+            return GetEndpointAddress("TcpInvalidEkuServerCert.svc//tcp-InvalidEkuServerCert", protocol: "net.tcp");
         }
     }
 
@@ -306,7 +459,7 @@ public static partial class Endpoints
     {
         get
         {
-            return BridgeClient.GetResourceHostName("WcfService.TestResources.TcpRevokedServerCertResource");
+            return ServiceUtilHelper.ServiceHostName;
         }
     }
 
@@ -314,7 +467,7 @@ public static partial class Endpoints
     {
         get
         {
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.TcpRevokedServerCertResource");
+            return GetEndpointAddress("TcpRevokedServerCert.svc//tcp-RevokedServerCert", protocol: "net.tcp");
         }
     }
 
@@ -322,39 +475,39 @@ public static partial class Endpoints
     {
         get
         {
-            return BridgeClient.GetResourceHostName("WcfService.TestResources.TcpExpiredServerCertResource");
+            return ServiceUtilHelper.ServiceHostName;
         }
     }
 
 
     public static string Tcp_NoSecurity_Callback_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.DuplexResource"); }
+        get { return GetEndpointAddress("Duplex.svc//tcp-nosecurity-callback", protocol: "net.tcp"); }
     }
 
     public static string Tcp_CustomBinding_NoSecurity_Text_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.TcpNoSecurityTextResource"); }
+        get { return GetEndpointAddress("TcpNoSecurityText.svc//tcp-custombinding-nosecurity-text", protocol: "net.tcp"); }
     }
 
     public static string Tcp_NoSecurity_TaskReturn_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.DuplexChannelCallbackReturnResource"); }
+        get { return GetEndpointAddress("DuplexChannelCallbackReturn.svc//tcp-nosecurity-taskreturn", protocol: "net.tcp"); }
     }
 
     public static string Tcp_NoSecurity_DuplexCallback_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.DuplexCallbackResource"); }
+        get { return GetEndpointAddress("DuplexCallback.svc//tcp-nosecurity-typedproxy-duplexcallback", protocol: "net.tcp"); }
     }
 
     public static string Tcp_NoSecurity_DataContractDuplexCallback_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.DuplexCallbackDataContractComplexTypeResource"); }
+        get { return GetEndpointAddress("DuplexCallbackDataContractComplexType.svc//tcp-nosecurity-callback", protocol: "net.tcp"); }
     }
 
     public static string Tcp_NoSecurity_XmlDuplexCallback_Address
     {
-        get { return BridgeClient.GetResourceAddress("WcfService.TestResources.DuplexCallbackXmlComplexTypeResource"); }
+        get { return GetEndpointAddress("DuplexCallbackXmlComplexType.svc//tcp-nosecurity-callback", protocol: "net.tcp"); }
     }
 
 
@@ -362,8 +515,7 @@ public static partial class Endpoints
     {
         get
         {
-            BridgeClientCertificateManager.InstallLocalCertificateFromBridge();
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.TcpTransportSecurityWithSslResource");
+            return GetEndpointAddress("TcpTransportSecurityWithSsl.svc//tcp-server-ssl-security", protocol: "net.tcp");
         }
     }
 
@@ -371,7 +523,7 @@ public static partial class Endpoints
     {
         get
         {
-            return BridgeClient.GetResourceHostName("WcfService.TestResources.TcpTransportSecurityWithSslResource");
+            return ServiceUtilHelper.ServiceHostName;
         }
     }
 
@@ -379,8 +531,7 @@ public static partial class Endpoints
     {
         get
         {
-            BridgeClientCertificateManager.InstallLocalCertificateFromBridge();
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.TcpTransportSecuritySslClientCredentialTypeCertificate");
+            return GetEndpointAddress("TcpTransportSecuritySslClientCredentialTypeCertificate.svc//tcp-server-ssl-security-clientcredentialtype-certificate", protocol: "net.tcp");
         }
     }
 
@@ -388,8 +539,7 @@ public static partial class Endpoints
     {
         get
         {
-            BridgeClientCertificateManager.InstallLocalCertificateFromBridge();
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.TcpTransportSecuritySslCustomCertValidationResource");
+            return GetEndpointAddress("TcpTransportSecuritySslCustomCertValidation.svc//tcp-server-ssl-security-clientcredentialtype-certificate-customvalidator", protocol: "net.tcp");
         }
     }
 
@@ -397,8 +547,7 @@ public static partial class Endpoints
     {
         get
         {
-            BridgeClientCertificateManager.InstallLocalCertificateFromBridge();
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.TcpCertificateWithServerAltNameResource");
+            return GetEndpointAddress("TcpCertificateWithServerAltName.svc//tcp-server-alt-name-cert", protocol: "net.tcp");
         }
     }
 
@@ -406,7 +555,7 @@ public static partial class Endpoints
     {
         get
         {
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.TcpCertificateWithSubjectCanonicalNameLocalhostResource");
+            return GetEndpointAddress("TcpCertificateWithSubjectCanonicalNameLocalhost.svc//tcp-server-subject-cn-localhost-cert", protocol: "net.tcp");
         }
     }
 
@@ -414,7 +563,7 @@ public static partial class Endpoints
     {
         get
         {
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.TcpCertificateWithSubjectCanonicalNameDomainNameResource");
+            return GetEndpointAddress("TcpCertificateWithSubjectCanonicalNameDomainName.svc//tcp-server-subject-cn-domainname-cert", protocol: "net.tcp");
         }
     }
 
@@ -422,7 +571,58 @@ public static partial class Endpoints
     {
         get
         {
-            return BridgeClient.GetResourceAddress("WcfService.TestResources.TcpCertificateWithSubjectCanonicalNameFqdnResource");
+            return GetEndpointAddress("TcpCertificateWithSubjectCanonicalNameFqdn.svc//tcp-server-subject-cn-fqdn-cert", protocol: "net.tcp");
         }
     }
+
+    public static string Tcp_Transport_Security_Streamed_Address
+    {
+        get
+        {
+            return GetEndpointAddress("WindowAuthenticationNegotiate/TcpTransportSecurityStreamed.svc/tcp-transport-security-streamed", protocol: "net.tcp");
+        }
+    }
+
+    public static string NetTcp_SecModeTrans_ClientCredTypeNone_ServerCertValModePeerTrust_Address
+    {
+        get
+        {
+            return GetEndpointAddress("NetTcpCertValModePeerTrust.svc//nettcp-server-cert-valmode-peertrust", protocol: "net.tcp");
+        }
+    }
+
+    public static string Tcp_Certificate_Duplex_Address
+    {
+        get
+        {
+            return GetEndpointAddress("DuplexCallbackTcpCertificateCredential.svc/tcp-certificate-callback", protocol: "net.tcp");
+        }
+    }
+
+    public static string Tcp_Session_Tests_Default_Service
+    {
+        get
+        {
+            return GetEndpointAddress("SessionTestsDefaultService.svc/tcp-sessions", protocol: "net.tcp");
+        }
+    }
+
+    public static string Tcp_Session_Tests_Short_Timeout_Service
+    {
+        get
+        {
+            return GetEndpointAddress("SessionTestsShortTimeoutService.svc", protocol: "net.tcp");
+        }
+    }
+
+    public static string Tcp_Session_Tests_Duplex_Service
+    {
+        get
+        {
+            return GetEndpointAddress("SessionTestsDuplexService.svc", protocol: "net.tcp");
+        }
+    }
+
+    #endregion net.tcp Addresses
 }
+

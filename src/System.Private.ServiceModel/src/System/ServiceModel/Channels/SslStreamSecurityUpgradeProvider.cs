@@ -1,6 +1,8 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
+using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics.Contracts;
 using System.IdentityModel.Policy;
@@ -145,16 +147,14 @@ namespace System.ServiceModel.Channels
 
         public override T GetProperty<T>()
         {
-#if FEATURE_CORECLR
             if (typeof(T) == typeof(IChannelBindingProvider) || typeof(T) == typeof(IStreamUpgradeChannelBindingProvider))
             {
                 return (T)(object)this;
             }
-#endif //FEATURE_CORECLR
+
             return base.GetProperty<T>();
         }
 
-#if FEATURE_CORECLR
         ChannelBinding IStreamUpgradeChannelBindingProvider.GetChannelBinding(StreamUpgradeInitiator upgradeInitiator, ChannelBindingKind kind)
         {
             if (upgradeInitiator == null)
@@ -177,29 +177,6 @@ namespace System.ServiceModel.Channels
             return sslUpgradeInitiator.ChannelBinding;
         }
 
-        ChannelBinding IStreamUpgradeChannelBindingProvider.GetChannelBinding(StreamUpgradeAcceptor upgradeAcceptor, ChannelBindingKind kind)
-        {
-            if (upgradeAcceptor == null)
-            {
-                throw DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull("upgradeAcceptor");
-            }
-
-            SslStreamSecurityUpgradeAcceptor sslupgradeAcceptor = upgradeAcceptor as SslStreamSecurityUpgradeAcceptor;
-
-            if (sslupgradeAcceptor == null)
-            {
-                throw DiagnosticUtility.ExceptionUtility.ThrowHelperArgument("upgradeAcceptor", SR.Format(SR.UnsupportedUpgradeAcceptor, upgradeAcceptor.GetType()));
-            }
-
-            if (kind != ChannelBindingKind.Endpoint)
-            {
-                throw DiagnosticUtility.ExceptionUtility.ThrowHelperArgument("kind", SR.Format(SR.StreamUpgradeUnsupportedChannelBindingKind, this.GetType(), kind));
-            }
-
-            return sslupgradeAcceptor.ChannelBinding;
-        }
-#endif // FEATURE_CORECLR
-
         void IChannelBindingProvider.EnableChannelBindingSupport()
         {
             _enableChannelBinding = true;
@@ -211,12 +188,6 @@ namespace System.ServiceModel.Channels
             {
                 return _enableChannelBinding;
             }
-        }
-
-        public override StreamUpgradeAcceptor CreateUpgradeAcceptor()
-        {
-            ThrowIfDisposedOrNotOpen();
-            return new SslStreamSecurityUpgradeAcceptor(this);
         }
 
         public override StreamUpgradeInitiator CreateUpgradeInitiator(EndpointAddress remoteAddress, Uri via)
@@ -243,14 +214,20 @@ namespace System.ServiceModel.Channels
             CleanupServerCertificate();
         }
 
+        protected internal override Task OnCloseAsync(TimeSpan timeout)
+        {
+            OnClose(timeout);
+            return TaskHelpers.CompletedTask();
+        }
+
         protected override IAsyncResult OnBeginClose(TimeSpan timeout, AsyncCallback callback, object state)
         {
-            throw ExceptionHelper.PlatformNotSupported("SslStreamSecurityUpgradeProvider async path");
+            return OnCloseAsync(timeout).ToApm(callback, state);
         }
 
         protected override void OnEndClose(IAsyncResult result)
         {
-            throw ExceptionHelper.PlatformNotSupported("SslStreamSecurityUpgradeProvider async path");
+            result.ToApmEnd();
         }
 
         private void SetupServerCertificate(SecurityToken token)
@@ -262,7 +239,8 @@ namespace System.ServiceModel.Channels
                 throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new InvalidOperationException(SR.Format(
                     SR.InvalidTokenProvided, _serverTokenProvider.GetType(), typeof(X509SecurityToken))));
             }
-            _serverCertificate = new X509Certificate2(x509Token.Certificate.Handle);
+
+            _serverCertificate = new X509Certificate2(x509Token.Certificate);
         }
 
         private void CleanupServerCertificate()
@@ -279,7 +257,7 @@ namespace System.ServiceModel.Channels
             using (CancellationTokenSource cts = new CancellationTokenSource(timeout))
             {
                 TimeoutHelper timeoutHelper = new TimeoutHelper(timeout);
-                SecurityUtils.OpenTokenAuthenticatorIfRequired(this.ClientCertificateAuthenticator, timeoutHelper.RemainingTime());
+                SecurityUtils.OpenTokenAuthenticatorIfRequired(ClientCertificateAuthenticator, timeoutHelper.RemainingTime());
 
                 if (_serverTokenProvider != null)
                 {
@@ -292,147 +270,20 @@ namespace System.ServiceModel.Channels
             }
         }
 
+        protected internal override Task OnOpenAsync(TimeSpan timeout)
+        {
+            OnOpen(timeout);
+            return TaskHelpers.CompletedTask();
+        }
+
         protected override IAsyncResult OnBeginOpen(TimeSpan timeout, AsyncCallback callback, object state)
         {
-            throw ExceptionHelper.PlatformNotSupported("SslStreamSecurityUpgradeProvider async path");
+            return OnOpenAsync(timeout).ToApm(callback, state);
         }
 
         protected override void OnEndOpen(IAsyncResult result)
         {
-            throw ExceptionHelper.PlatformNotSupported("SslStreamSecurityUpgradeProvider async path");
-        }
-    }
-
-    internal class SslStreamSecurityUpgradeAcceptor : StreamSecurityUpgradeAcceptorBase
-    {
-        private SslStreamSecurityUpgradeProvider _parent;
-        private SecurityMessageProperty _clientSecurity;
-        // for audit
-        private X509Certificate2 _clientCertificate = null;
-        private ChannelBinding _channelBindingToken;
-
-        public SslStreamSecurityUpgradeAcceptor(SslStreamSecurityUpgradeProvider parent)
-            : base(FramingUpgradeString.SslOrTls)
-        {
-            _parent = parent;
-            _clientSecurity = new SecurityMessageProperty();
-        }
-
-
-        internal ChannelBinding ChannelBinding
-        {
-            get
-            {
-                Fx.Assert(this.IsChannelBindingSupportEnabled, "A request for the ChannelBinding is not permitted without enabling ChannelBinding first (through the IChannelBindingProvider interface)");
-                return _channelBindingToken;
-            }
-        }
-
-        internal bool IsChannelBindingSupportEnabled
-        {
-            get
-            {
-                return ((IChannelBindingProvider)_parent).IsChannelBindingSupportEnabled;
-            }
-        }
-
-        protected override Stream OnAcceptUpgrade(Stream stream, out SecurityMessageProperty remoteSecurity)
-        {
-#if FEATURE_NETNATIVE
-            throw ExceptionHelper.PlatformNotSupported("SslStreamSecurityUpgradeAcceptor.OnAcceptUpgrade");
-#else // !FEATURE_NETNATIVE
-
-            if (WcfEventSource.Instance.SslOnAcceptUpgradeIsEnabled())
-            {
-                WcfEventSource.Instance.SslOnAcceptUpgrade(this.EventTraceActivity);
-            }
-
-            SslStream sslStream = new SslStream(stream, false, this.ValidateRemoteCertificate);
-
-            try
-            {
-                sslStream.AuthenticateAsServerAsync(_parent.ServerCertificate, _parent.RequireClientCertificate,
-                    _parent.SslProtocols, false).GetAwaiter().GetResult();
-
-            }
-            catch (AuthenticationException exception)
-            {
-                throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new SecurityNegotiationException(exception.Message,
-                    exception));
-            }
-            catch (IOException ioException)
-            {
-                throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new SecurityNegotiationException(
-                    SR.Format(SR.NegotiationFailedIO, ioException.Message), ioException));
-            }
-
-            remoteSecurity = _clientSecurity;
-
-            if (this.IsChannelBindingSupportEnabled)
-            {
-                _channelBindingToken = ChannelBindingUtility.GetToken(sslStream);
-            }
-
-            return sslStream;
-#endif // !FEATURE_NETNATIVE
-        }
-
-        protected override IAsyncResult OnBeginAcceptUpgrade(Stream stream, AsyncCallback callback, object state)
-        {
-            throw ExceptionHelper.PlatformNotSupported("SslStreamSecurityUpgradeProvider async path");
-        }
-
-        protected override Stream OnEndAcceptUpgrade(IAsyncResult result, out SecurityMessageProperty remoteSecurity)
-        {
-            throw ExceptionHelper.PlatformNotSupported("SslStreamSecurityUpgradeProvider async path");
-        }
-
-        // callback from schannel
-        private bool ValidateRemoteCertificate(object sender, X509Certificate certificate, X509Chain chain,
-            SslPolicyErrors sslPolicyErrors)
-        {
-            if (_parent.RequireClientCertificate)
-            {
-                if (certificate == null)
-                {
-                    Contract.Assert(certificate != null, "certificate MUST NOT be null");
-                    return false;
-                }
-                // Note: add ref to handle since the caller will reset the cert after the callback return.
-                X509Certificate2 certificate2 = new X509Certificate2(certificate.Handle);
-                _clientCertificate = certificate2;
-                try
-                {
-                    SecurityToken token = new X509SecurityToken(certificate2, false);
-                    ReadOnlyCollection<IAuthorizationPolicy> authorizationPolicies = _parent.ClientCertificateAuthenticator.ValidateToken(token);
-                    _clientSecurity = new SecurityMessageProperty();
-                    _clientSecurity.TransportToken = new SecurityTokenSpecification(token, authorizationPolicies);
-                    _clientSecurity.ServiceSecurityContext = new ServiceSecurityContext(authorizationPolicies);
-                }
-                catch (SecurityTokenException)
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        public override SecurityMessageProperty GetRemoteSecurity()
-        {
-            if (_clientSecurity.TransportToken != null)
-            {
-                return _clientSecurity;
-            }
-            if (_clientCertificate != null)
-            {
-                SecurityToken token = new X509SecurityToken(_clientCertificate);
-                ReadOnlyCollection<IAuthorizationPolicy> authorizationPolicies = SecurityUtils.NonValidatingX509Authenticator.ValidateToken(token);
-                _clientSecurity = new SecurityMessageProperty();
-                _clientSecurity.TransportToken = new SecurityTokenSpecification(token, authorizationPolicies);
-                _clientSecurity.ServiceSecurityContext = new ServiceSecurityContext(authorizationPolicies);
-                return _clientSecurity;
-            }
-            return base.GetRemoteSecurity();
+            result.ToApmEnd();
         }
     }
 
@@ -444,9 +295,7 @@ namespace System.ServiceModel.Channels
         private X509SecurityToken _clientToken;
         private SecurityTokenAuthenticator _serverCertificateAuthenticator;
         private ChannelBinding _channelBindingToken;
-#if !FEATURE_NETNATIVE
         private static LocalCertificateSelectionCallback s_clientCertificateSelectionCallback;
-#endif // !FEATURE_NETNATIVE
 
         public SslStreamSecurityUpgradeInitiator(SslStreamSecurityUpgradeProvider parent,
             EndpointAddress remoteAddress, Uri via)
@@ -483,7 +332,6 @@ namespace System.ServiceModel.Channels
             }
         }
 
-#if !FEATURE_NETNATIVE
         private static LocalCertificateSelectionCallback ClientCertificateSelectionCallback
         {
             get
@@ -496,13 +344,12 @@ namespace System.ServiceModel.Channels
                 return s_clientCertificateSelectionCallback;
             }
         }
-#endif //!FEATURE_NETNATIVE
 
         internal ChannelBinding ChannelBinding
         {
             get
             {
-                Fx.Assert(this.IsChannelBindingSupportEnabled, "A request for the ChannelBinding is not permitted without enabling ChannelBinding first (through the IChannelBindingProvider interface)");
+                Fx.Assert(IsChannelBindingSupportEnabled, "A request for the ChannelBinding is not permitted without enabling ChannelBinding first (through the IChannelBindingProvider interface)");
                 return _channelBindingToken;
             }
         }
@@ -565,18 +412,13 @@ namespace System.ServiceModel.Channels
 
         protected override Stream OnInitiateUpgrade(Stream stream, out SecurityMessageProperty remoteSecurity)
         {
-            OutWrapper<SecurityMessageProperty> remoteSecurityWrapper = new OutWrapper<SecurityMessageProperty>(); 
-            Stream retVal = this.OnInitiateUpgradeAsync(stream, remoteSecurityWrapper).GetAwaiter().GetResult();
-            remoteSecurity = remoteSecurityWrapper.Value; 
+            OutWrapper<SecurityMessageProperty> remoteSecurityWrapper = new OutWrapper<SecurityMessageProperty>();
+            Stream retVal = OnInitiateUpgradeAsync(stream, remoteSecurityWrapper).GetAwaiter().GetResult();
+            remoteSecurity = remoteSecurityWrapper.Value;
 
-            return retVal; 
+            return retVal;
         }
 
-#if FEATURE_NETNATIVE
-        protected override Task<Stream> OnInitiateUpgradeAsync(Stream stream, OutWrapper<SecurityMessageProperty> remoteSecurityWrapper)
-        {
-            throw ExceptionHelper.PlatformNotSupported("SslStreamSecurityUpgradeInitiator.InInitiateUpgradeAsync");
-#else // !FEATURE_NETNATIVE
         protected override async Task<Stream> OnInitiateUpgradeAsync(Stream stream, OutWrapper<SecurityMessageProperty> remoteSecurityWrapper)
         {
             if (WcfEventSource.Instance.SslOnInitiateUpgradeIsEnabled())
@@ -624,7 +466,6 @@ namespace System.ServiceModel.Channels
             }
 
             return sslStream;
-#endif //!FEATURE_NETNATIVE
         }
 
         private static X509Certificate SelectClientCertificate(object sender, string targetHost,
@@ -637,7 +478,9 @@ namespace System.ServiceModel.Channels
             SslPolicyErrors sslPolicyErrors)
         {
             // Note: add ref to handle since the caller will reset the cert after the callback return.
-            X509Certificate2 certificate2 = new X509Certificate2(certificate.Handle);
+
+            X509Certificate2 certificate2 = new X509Certificate2(certificate);
+
             SecurityToken token = new X509SecurityToken(certificate2, false);
             ReadOnlyCollection<IAuthorizationPolicy> authorizationPolicies = _serverCertificateAuthenticator.ValidateToken(token);
             _serverSecurity = new SecurityMessageProperty();
@@ -645,7 +488,7 @@ namespace System.ServiceModel.Channels
             _serverSecurity.ServiceSecurityContext = new ServiceSecurityContext(authorizationPolicies);
 
             AuthorizationContext authzContext = _serverSecurity.ServiceSecurityContext.AuthorizationContext;
-            _parent.IdentityVerifier.EnsureOutgoingIdentity(this.RemoteAddress, this.Via, authzContext);
+            _parent.IdentityVerifier.EnsureOutgoingIdentity(RemoteAddress, Via, authzContext);
 
             return true;
         }

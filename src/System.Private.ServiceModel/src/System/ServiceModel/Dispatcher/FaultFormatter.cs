@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Collections.Generic;
 using System.ServiceModel.Channels;
@@ -9,7 +11,10 @@ using System.Runtime;
 
 namespace System.ServiceModel.Dispatcher
 {
-    internal class FaultFormatter : IClientFaultFormatter, IDispatchFaultFormatter
+     /*
+      This class is not exposed on the contract as we only need it public for reflection purpose on .Net Native.
+      */
+    public class FaultFormatter : IClientFaultFormatter, IDispatchFaultFormatter
     {
         private FaultContractInfo[] _faultContractInfos;
 
@@ -191,7 +196,10 @@ namespace System.ServiceModel.Dispatcher
             return (MessageFault)Activator.CreateInstance(operationFaultType, serializer, faultException);
         }
 
-        internal class OperationFault<T> : XmlObjectSerializerFault
+        /*
+        This class is not exposed on the contract as we only need it public for reflection purpose on .Net Native.
+        */
+        public class OperationFault<T> : XmlObjectSerializerFault
         {
             public OperationFault(XmlObjectSerializer serializer, FaultException<T> faultException) :
                 base(faultException.Code, faultException.Reason,

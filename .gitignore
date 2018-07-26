@@ -12,6 +12,7 @@ syntax: glob
 *.sln.docstates
 
 # Build results
+.idea/
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/
@@ -23,6 +24,14 @@ bld/
 [Bb]in/
 [Oo]bj/
 msbuild.log
+msbuild.err
+msbuild.wrn
+
+# Cross building rootfs
+cross/rootfs/
+cross/android-rootfs/
+# add x86 as it is ignored in 'Build results'
+!cross/x86
 
 # Visual Studio 2015
 .vs/
@@ -80,6 +89,7 @@ ipch/
 *.opensdf
 *.sdf
 *.cachefile
+*.VC.db
 
 # Visual Studio profiler
 *.psess
@@ -167,6 +177,7 @@ ClientBin/
 node_modules/
 *.metaproj
 *.metaproj.tmp
+bin.localpkg/
 
 # RIA/Silverlight projects
 Generated_Code/
@@ -254,3 +265,10 @@ Temporary Items
 Session.vim
 .netrwhist
 *~
+
+# Visual Studio Code
+.vscode/
+
+# Private test configuration and binaries.
+config.ps1
+**/IISApplications

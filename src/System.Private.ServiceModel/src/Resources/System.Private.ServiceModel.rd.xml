@@ -12,6 +12,10 @@
     
     <Assembly Name="System.Private.ServiceModel">
       <Namespace Name="System.ServiceModel">
+        <!-- All ICommunicationObject implementations require reflection -->
+        <Type Name="ICommunicationObject" Dynamic="Required All" >
+           <Subtypes Browse="All" />
+        </Type>
         <Type Name="BasicHttpBinding" Dynamic="Required All" />
         <!-- WCF attributes must be reflectable to instantiate Attribute from CustomAttributeData -->
         <Type Name="FaultContractAttribute" Dynamic="Required All" >
@@ -44,6 +48,8 @@
         <Type Name="ExceptionDetail" Dynamic="Required All" DataContractJsonSerializer="Public" DataContractSerializer="Public" />
         <!-- Allowing Reflection on FaultException{Object} permits type instantiation of FaultException{TDetail} -->
         <Type Name="FaultException{System.Object}" Dynamic="Required All" />
+        <!-- Allow instantiation of generic FaultException for both classes and value types -->
+        <Type Name="FaultException`1" Dynamic="Required All" />
       </Namespace>
       <Namespace Name="System.ServiceModel.Channels">
         <Type Name="Binding" Dynamic="Required All" >
@@ -51,6 +57,16 @@
         </Type>
         <Type Name="CustomBinding" Dynamic="Required All" />
         <Type Name="IRequestChannel" Dynamic="Required All" />
+        <Type Name="MessageHeader" Dynamic="Required All">
+          <Method Name="CreateHeader">
+            <Parameter Name="value" Dynamic="Required All" DataContractSerializer="Public" />
+          </Method>
+        </Type>
+      </Namespace>
+      <Namespace Name="System.ServiceModel.Dispatcher">
+          <Type Name="FaultFormatter">
+            <Type Name="OperationFault{T}" Dynamic="Required All" />
+          </Type>
       </Namespace>
     </Assembly>
   </Library>

@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.IdentityModel.Selectors;
 using System.ServiceModel.Channels;
@@ -31,8 +33,11 @@ namespace System.ServiceModel.Description
                 _clientCertificate = new X509CertificateInitiatorClientCredential(other._clientCertificate);
             if (other._serviceCertificate != null)
                 _serviceCertificate = new X509CertificateRecipientClientCredential(other._serviceCertificate);
+            if (other._windows != null)
+                _windows = new WindowsClientCredential(other._windows);
             if (other._httpDigest != null)
                 _httpDigest = new HttpDigestClientCredential(other._httpDigest);
+
             _isReadOnly = other._isReadOnly;
         }
 
@@ -180,7 +185,7 @@ namespace System.ServiceModel.Description
         // RC0 workaround to freeze credentials when the channel factory is opened
         internal void MakeReadOnly()
         {
-            _isReadOnly = true; 
+            _isReadOnly = true;
 
             if (_clientCertificate != null)
                 _clientCertificate.MakeReadOnly();

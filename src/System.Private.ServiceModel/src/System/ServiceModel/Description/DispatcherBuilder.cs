@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Runtime;
 using System.ServiceModel.Channels;
@@ -132,6 +134,7 @@ namespace System.ServiceModel.Description
             child.EndMethod = operation.EndMethod;
             child.IsOneWay = operation.IsOneWay;
             child.IsInitiating = operation.IsInitiating;
+            child.IsTerminating = operation.IsTerminating;
             child.IsSessionOpenNotificationEnabled = operation.IsSessionOpenNotificationEnabled;
             for (int i = 0; i < operation.Faults.Count; i++)
             {
@@ -158,6 +161,7 @@ namespace System.ServiceModel.Description
 
             child.HasNoDisposableParameters = operation.HasNoDisposableParameters;
 
+            child.IsTerminating = operation.IsTerminating;
             child.IsSessionOpenNotificationEnabled = operation.IsSessionOpenNotificationEnabled;
             for (int i = 0; i < operation.Faults.Count; i++)
             {

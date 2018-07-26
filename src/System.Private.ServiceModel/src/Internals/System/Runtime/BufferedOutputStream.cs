@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.IO;
 
@@ -132,23 +134,23 @@ namespace System.Runtime
             _currentChunkSize = 0;
         }
 
-        public virtual IAsyncResult BeginRead(byte[] buffer, int offset, int size, AsyncCallback callback, object state)
+        public override IAsyncResult BeginRead(byte[] buffer, int offset, int size, AsyncCallback callback, object state)
         {
             throw Fx.Exception.AsError(new NotSupportedException(InternalSR.ReadNotSupported));
         }
 
-        public virtual int EndRead(IAsyncResult result)
+        public override int EndRead(IAsyncResult result)
         {
             throw Fx.Exception.AsError(new NotSupportedException(InternalSR.ReadNotSupported));
         }
 
-        public virtual IAsyncResult BeginWrite(byte[] buffer, int offset, int size, AsyncCallback callback, object state)
+        public override IAsyncResult BeginWrite(byte[] buffer, int offset, int size, AsyncCallback callback, object state)
         {
             Write(buffer, offset, size);
             return new CompletedAsyncResult(callback, state);
         }
 
-        public virtual void EndWrite(IAsyncResult result)
+        public override void EndWrite(IAsyncResult result)
         {
             CompletedAsyncResult.End(result);
         }
@@ -171,7 +173,7 @@ namespace System.Runtime
             _currentChunk = null;
         }
 
-        public virtual void Close()
+        public override void Close()
         {
         }
 

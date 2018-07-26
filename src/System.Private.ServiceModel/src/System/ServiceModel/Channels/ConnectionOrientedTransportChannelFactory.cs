@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Collections.ObjectModel;
 using System.Diagnostics.Contracts;
@@ -66,6 +68,13 @@ namespace System.ServiceModel.Channels
                 // there is the binding is configured with security
                 _flowIdentity = supportsImpersonationDuringAsyncOpen;
             }
+
+            // We explicitly declare this type and all derived types support
+            // async open/close.  We currently must do this because the NET Native
+            // toolchain does not recognize this type was granted Reflection degree.
+            // Is it safe to do this only because this is an internal type and no
+            // derived type is public or exposed in contract.
+            SupportsAsyncOpenClose = true;
         }
 
         public int ConnectionBufferSize
@@ -207,7 +216,9 @@ namespace System.ServiceModel.Channels
                     ConnectionInitiator, _connectionPool, _exposeConnectionProperty, _flowIdentity);
             }
 
-            throw ExceptionHelper.PlatformNotSupported("StreamedFramingRequestChannel not yet implemented");
+            // typeof(TChannel) == typeof(IRequestChannel)
+            return (TChannel)(object)new StreamedFramingRequestChannel(this, this, address, via,
+                ConnectionInitiator, _connectionPool);
         }
 
         private bool GetUpgradeAndConnectionPool(out StreamUpgradeProvider upgradeCopy, out ConnectionPool poolCopy)

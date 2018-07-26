@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Globalization;
 using System.Runtime;
@@ -40,6 +42,7 @@ namespace System.ServiceModel.Dispatcher
         private bool _hasRegisterBeenCalled;
         private bool _hasSession;
         private int _isPumpAcquired;
+        private bool _isChannelTerminated;
         private bool _isConcurrent;
         private bool _isManualAddressing;
         private MessageVersion _messageVersion;
@@ -196,7 +199,7 @@ namespace System.ServiceModel.Dispatcher
                 WcfEventSource.Instance.ChannelReceiveStop(this.EventTraceActivity, this.GetHashCode());
             }
 
-            for (; ;)
+            for (;;)
             {
                 RequestContext request;
 
@@ -275,6 +278,11 @@ namespace System.ServiceModel.Dispatcher
                 if (MessageLogger.LoggingEnabled)
                 {
                     MessageLogger.LogMessage(ref message, (operation.IsOneWay ? MessageLoggingSource.ServiceLevelReceiveDatagram : MessageLoggingSource.ServiceLevelReceiveRequest) | MessageLoggingSource.LastChance);
+                }
+
+                if (operation.IsTerminating && _hasSession)
+                {
+                    _isChannelTerminated = true;
                 }
 
                 bool hasOperationContextBeenSet;
@@ -692,6 +700,14 @@ namespace System.ServiceModel.Dispatcher
                     this.ReleasePump();
                     return true;
                 }
+
+                if (_isChannelTerminated)
+                {
+                    ReleasePump();
+                    ReplyChannelTerminated(request);
+                    return true;
+                }
+
                 if (_requestInfo.RequestContext != null)
                 {
                     Fx.Assert("ChannelHandler.HandleRequest: this.requestInfo.RequestContext != null");
@@ -847,6 +863,16 @@ namespace System.ServiceModel.Dispatcher
                 string reason = SR.Format(SR.SFxNoEndpointMatchingContract, request.RequestMessage.Headers.Action);
                 ReplyFailure(request, code, reason, _messageVersion.Addressing.FaultAction);
             }
+        }
+
+        private void ReplyChannelTerminated(RequestContext request)
+        {
+            FaultCode code = FaultCode.CreateSenderFaultCode(FaultCodeConstants.Codes.SessionTerminated,
+                FaultCodeConstants.Namespaces.NetDispatch);
+            string reason = SR.Format(SR.SFxChannelTerminated0);
+            string action = FaultCodeConstants.Actions.NetDispatcher;
+            Message fault = Message.CreateMessage(_messageVersion, code, reason, action);
+            ReplyFailure(request, fault, action, reason, code);
         }
 
         private void ReplyFailure(RequestContext request, FaultCode code, string reason)
@@ -1109,7 +1135,7 @@ namespace System.ServiceModel.Dispatcher
                 OperationContext currentOperationContext = new OperationContext();
                 OperationContext.Current = currentOperationContext;
 
-                for (; ;)
+                for (;;)
                 {
                     RequestContext request;
 
@@ -1268,7 +1294,7 @@ namespace System.ServiceModel.Dispatcher
             }
         }
 
-        EventTraceActivity TraceDispatchMessageStart(Message message)
+        private EventTraceActivity TraceDispatchMessageStart(Message message)
         {
             if (FxTrace.Trace.IsEnd2EndActivityTracingEnabled && message != null)
             {

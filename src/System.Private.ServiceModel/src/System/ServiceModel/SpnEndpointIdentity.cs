@@ -1,13 +1,36 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+
+using System.IdentityModel.Claims;
+using System.Runtime;
+using System.Security.Principal;
 
 namespace System.ServiceModel
 {
     public class SpnEndpointIdentity : EndpointIdentity
     {
         private static TimeSpan s_spnLookupTime = TimeSpan.FromMinutes(1);
-        private Object _thisLock = new Object();
-        private static Object s_typeLock = new Object();
+
+        public SpnEndpointIdentity(string spnName)
+        {
+            if (spnName == null)
+                throw DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull("spnName");
+
+            base.Initialize(Claim.CreateSpnClaim(spnName));
+        }
+
+        public SpnEndpointIdentity(Claim identity)
+        {
+            if (identity == null)
+                throw DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull("identity");
+
+            if (!identity.ClaimType.Equals(ClaimTypes.Spn))
+                throw DiagnosticUtility.ExceptionUtility.ThrowHelperArgument(SR.Format(SR.UnrecognizedClaimTypeForIdentity, identity.ClaimType, ClaimTypes.Spn));
+
+            base.Initialize(identity);
+        }
 
         public static TimeSpan SpnLookupTime
         {
@@ -19,19 +42,11 @@ namespace System.ServiceModel
             {
                 if (value.Ticks < 0)
                 {
-                    throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("value", value.Ticks,
-                                                    SR.ValueMustBeNonNegative));
+                    throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(
+                        new ArgumentOutOfRangeException("value", value.Ticks, SR.Format(SR.ValueMustBeNonNegative)));
                 }
                 s_spnLookupTime = value;
             }
-        }
-
-        public SpnEndpointIdentity(string spnName)
-        {
-            if (spnName == null)
-                throw DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull("spnName");
-
-            throw ExceptionHelper.PlatformNotSupported("SpnEndpointIdentity is not supported");
         }
     }
 }

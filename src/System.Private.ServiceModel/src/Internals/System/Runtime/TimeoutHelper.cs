@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Collections.Concurrent;
 using System.Diagnostics.Contracts;
@@ -298,7 +300,7 @@ namespace System.Runtime
 
             if (!s_tokenCache.TryGetValue(targetTime, out tokenTask))
             {
-                var tcs = new TaskCompletionSource<CancellationToken>();
+                var tcs = new TaskCompletionSource<CancellationToken>(TaskCreationOptions.RunContinuationsAsynchronously);
 
                 // only a single thread may succeed adding its task into the cache
                 if (s_tokenCache.TryAdd(targetTime, tcs.Task))
@@ -310,7 +312,7 @@ namespace System.Runtime
 
                     // Clean up cache when Token is canceled
                     token.Register(s_deregisterToken, Tuple.Create(targetTime, tokenSource));
-                    
+
                     // set the result so other thread may observe the token, and return
                     tcs.TrySetResult(token);
                     tokenTask = tcs.Task;
@@ -321,7 +323,7 @@ namespace System.Runtime
                     if (!s_tokenCache.TryGetValue(targetTime, out tokenTask))
                     {
                         // In unlikely scenario the token was already cancelled and timed out, we would not find it in cache.
-                        // In this case we would simply create a non-coalsed token
+                        // In this case we would simply create a non-coalesced token
                         tokenTask = Task.FromResult(new CancellationTokenSource(millisecondsTimeout).Token);
                     }
                 }

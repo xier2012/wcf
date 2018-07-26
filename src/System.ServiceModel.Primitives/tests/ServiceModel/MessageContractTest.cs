@@ -1,13 +1,16 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System;
 using System.ServiceModel;
+using Infrastructure.Common;
 using Xunit;
 
 public static class MessageContractTest
 {
-    [Fact]
+    [WcfFact]
     public static void Default_Ctor_Initializes_Properties()
     {
         // Verify new MessageContractAttribute() initializes correct defaults.
@@ -20,7 +23,7 @@ public static class MessageContractTest
         Assert.True(messageCA.WrapperNamespace == null, "WrapperNamespace should be null");
     }
 
-    [Theory]
+    [WcfTheory]
     [InlineData(true)]
     [InlineData(false)]
     public static void IsWrapped_Property_Sets(bool isWrapped)
@@ -31,7 +34,7 @@ public static class MessageContractTest
         Assert.Equal(isWrapped, messageCA.IsWrapped);
     }
 
-    [Theory]
+    [WcfTheory]
     [InlineData("testWrapperName")]
     public static void WrapperName_Property_Sets(string wrapperName)
     {
@@ -41,7 +44,7 @@ public static class MessageContractTest
         Assert.Equal(wrapperName, messageCA.WrapperName);
     }
 
-    [Theory]
+    [WcfTheory]
     [InlineData("")]
     public static void WrapperName_Property_Sets_Throws_Argument(string wrapperName)
     {
@@ -49,19 +52,19 @@ public static class MessageContractTest
         Assert.Throws<ArgumentOutOfRangeException>(() => messageCA.WrapperName = wrapperName);
     }
 
-    [Theory]
-    [InlineData(null)]
+    [WcfTheory]
+    [InlineData(new object[] { null } )]
     public static void WrapperName_Property_Sets_Throws_ArgumentNull(string wrapperName)
     {
         MessageContractAttribute messageCA = new MessageContractAttribute();
         Assert.Throws<ArgumentNullException>(() => messageCA.WrapperName = wrapperName);
     }
 
-    [Theory]
+    [WcfTheory]
     [InlineData("http://www.contoso.com")]
     [InlineData("testNamespace")]
     [InlineData("")]
-    [InlineData(null)]
+    [InlineData(new object[] { null } )]
     public static void WrapperNamespace_Property_Sets(string wrapperNamespace)
     {
         MessageContractAttribute messageCA = new MessageContractAttribute();
@@ -70,7 +73,7 @@ public static class MessageContractTest
         Assert.Equal(wrapperNamespace, messageCA.WrapperNamespace);
     }
 
-    [Theory]
+    [WcfTheory]
     [InlineData(true)]
     [InlineData(false)]
     public static void MessageHeader_MustUnderStand_Sets(bool mustUnderstand)

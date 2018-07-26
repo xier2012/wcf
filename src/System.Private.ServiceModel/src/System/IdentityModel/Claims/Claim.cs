@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Collections.Generic;
 using System.Globalization;
@@ -128,7 +130,6 @@ namespace System.IdentityModel.Claims
             return new Claim(ClaimTypes.Name, name, Rights.PossessProperty);
         }
 
-
         public static Claim CreateSpnClaim(string spn)
         {
             if (spn == null)
@@ -145,7 +146,6 @@ namespace System.IdentityModel.Claims
             return new Claim(ClaimTypes.Thumbprint, SecurityUtils.CloneBuffer(thumbprint), Rights.PossessProperty, ClaimComparer.Thumbprint);
         }
 
-#if SUPPORTS_WINDOWSIDENTITY
         public static Claim CreateUpnClaim(string upn)
         {
             if (upn == null)
@@ -153,7 +153,6 @@ namespace System.IdentityModel.Claims
 
             return new Claim(ClaimTypes.Upn, upn, Rights.PossessProperty, ClaimComparer.Upn);
         }
-#endif // SUPPORTS_WINDOWSIDENTITY
 
         public static Claim CreateUriClaim(Uri uri)
         {
@@ -163,7 +162,6 @@ namespace System.IdentityModel.Claims
             return new Claim(ClaimTypes.Uri, uri, Rights.PossessProperty);
         }
 
-#if SUPPORTS_WINDOWSIDENTITY // NegotiateStream
         public static Claim CreateWindowsSidClaim(SecurityIdentifier sid)
         {
             if (sid == null)
@@ -171,7 +169,6 @@ namespace System.IdentityModel.Claims
 
             return new Claim(ClaimTypes.Sid, sid, Rights.PossessProperty);
         }
-#endif // SUPPORTS_WINDOWSIDENTITY 
 
         public static Claim CreateX500DistinguishedNameClaim(X500DistinguishedName x500DistinguishedName)
         {

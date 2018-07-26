@@ -1,19 +1,23 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Collections.Generic;
+using System.ServiceModel;
 
 namespace System.Runtime
 {
-    public class MruCache<TKey, TValue>
+    internal class MruCache<TKey, TValue> : IDisposable
         where TKey : class
         where TValue : class
     {
         private LinkedList<TKey> _mruList;
         private Dictionary<TKey, CacheEntry> _items;
-        private int _lowWatermark;
-        private int _highWatermark;
+        private readonly int _lowWatermark;
+        private readonly int _highWatermark;
         private CacheEntry _mruEntry;
+        private bool _disposed;
 
         public MruCache(int watermark)
             : this(watermark * 4 / 5, watermark)
@@ -51,13 +55,17 @@ namespace System.Runtime
         {
             get
             {
+                ThrowIfDisposed();
                 return _items.Count;
             }
         }
 
+        public bool IsDisposed => _disposed;
+
         public void Add(TKey key, TValue value)
         {
             Fx.Assert(null != key, "");
+            ThrowIfDisposed();
 
             // if anything goes wrong (duplicate entry, etc) we should 
             // clear our caches so that we don't get out of sync
@@ -98,7 +106,35 @@ namespace System.Runtime
 
         public void Clear()
         {
+            ThrowIfDisposed();
+            Clear(false);
+        }
+
+        private void Clear(bool dispose)
+        {
             _mruList.Clear();
+            if (dispose)
+            {
+                foreach (CacheEntry cacheEntry in _items.Values)
+                {
+                    var item = cacheEntry.value as IDisposable;
+                    if (item != null)
+                    {
+                        try
+                        {
+                            item.Dispose();
+                        }
+                        catch (Exception e)
+                        {
+                            if (Fx.IsFatal(e))
+                            {
+                                throw;
+                            }
+                        }
+                    }
+                }
+            }
+
             _items.Clear();
             _mruEntry.value = null;
             _mruEntry.node = null;
@@ -107,6 +143,7 @@ namespace System.Runtime
         public bool Remove(TKey key)
         {
             Fx.Assert(null != key, "");
+            ThrowIfDisposed();
 
             CacheEntry entry;
             if (_items.TryGetValue(key, out entry))
@@ -127,10 +164,12 @@ namespace System.Runtime
 
         protected virtual void OnSingleItemRemoved(TValue item)
         {
+            ThrowIfDisposed();
         }
 
         protected virtual void OnItemAgedOutOfCache(TValue item)
         {
+            ThrowIfDisposed();
         }
 
         //
@@ -160,6 +199,31 @@ namespace System.Runtime
             }
 
             return found;
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (!IsDisposed)
+                {
+                    _disposed = true;
+                    Clear(true);
+                }
+            }
+        }
+
+        private void ThrowIfDisposed()
+        {
+            if (IsDisposed)
+            {
+                throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ObjectDisposedException(this.GetType().FullName));
+            }
         }
 
         private struct CacheEntry

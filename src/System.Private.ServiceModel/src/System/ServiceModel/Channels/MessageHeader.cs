@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Globalization;
 using System.IO;
@@ -57,14 +59,21 @@ namespace System.ServiceModel.Channels
                 {
                     using (XmlDictionaryWriter writer = XmlDictionaryWriter.CreateDictionaryWriter(textWriter))
                     {
-
                         if (IsMessageVersionSupported(MessageVersion.Soap12WSAddressing10))
                         {
                             WriteHeader(writer, MessageVersion.Soap12WSAddressing10);
                         }
+                        else if (IsMessageVersionSupported(MessageVersion.Soap12WSAddressingAugust2004))
+                        {
+                            WriteHeader(writer, MessageVersion.Soap12WSAddressingAugust2004);
+                        }
                         else if (IsMessageVersionSupported(MessageVersion.Soap11WSAddressing10))
                         {
                             WriteHeader(writer, MessageVersion.Soap11WSAddressing10);
+                        }
+                        else if (IsMessageVersionSupported(MessageVersion.Soap11WSAddressingAugust2004))
+                        {
+                            WriteHeader(writer, MessageVersion.Soap11WSAddressingAugust2004);
                         }
                         else if (IsMessageVersionSupported(MessageVersion.Soap12))
                         {

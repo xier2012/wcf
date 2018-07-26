@@ -1,10 +1,13 @@
 # WCF -- Windows Communication Foundation Client Libraries
 
-|   |Windows|
-|:-:|:-:|
-|**Debug**|[![Build and Innerloop test status](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_wcf/windows_debug.svg?label=build+%26+innerloop+test)](http://dotnet-ci.cloudapp.net/job/dotnet_wcf/job/windows_debug/) [![Outerloop test status](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_wcf/outerloop_windows_debug.svg?label=outerloop+tests)](http://dotnet-ci.cloudapp.net/job/dotnet_wcf/job/outerloop_windows_debug/)|
-|**Release**|[![Build and Innerloop test status](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_wcf/windows_release.svg?label=build+%26+innerloop+test)](http://dotnet-ci.cloudapp.net/job/dotnet_wcf/job/windows_release/)|
-|**Coverage Report**|[![Coverage Status](http://dotnet-ci.cloudapp.net/job/dotnet_wcf/job/code_coverage_windows/lastStableBuild/Code_Coverage_Report/badge_combined.svg)](http://dotnet-ci.cloudapp.net/job/dotnet_wcf/job/code_coverage_windows/)|
+| |Innerloop|Outerloop|
+|:-:|:-:|:-:|
+|**CentOS 7.1**|[![Debug](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_wcf/job/master/centos7.1_debug.svg?label=debug+x64)](https://ci.dot.net/job/dotnet_wcf/job/master/job/centos7.1_debug/) [![Release](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_wcf/job/master/centos7.1_release.svg?label=release+x64)](https://ci.dot.net/job/dotnet_wcf/job/master/job/centos7.1_release/)|[![Outerloop Debug](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_wcf/job/master/outerloop_centos7.1_debug.svg?label=outerloop+debug+x64)](https://ci.dot.net/job/dotnet_wcf/job/master/job/outerloop_centos7.1_debug/) [![Outerloop Release](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_wcf/job/master/outerloop_centos7.1_release.svg?label=outerloop+release+x64)](https://ci.dot.net/job/dotnet_wcf/job/master/job/outerloop_centos7.1_release/)|
+|**OS X 10.11**|[![Debug](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_wcf/job/master/osx_debug.svg?label=debug+x64)](https://ci.dot.net/job/dotnet_wcf/job/master/job/osx_debug/) [![Release](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_wcf/job/master/osx_release.svg?label=release+x64)](https://ci.dot.net/job/dotnet_wcf/job/master/job/osx_release/)|[![Outerloop Debug](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_wcf/job/master/outerloop_osx_debug.svg?label=outerloop+debug+x64)](https://ci.dot.net/job/dotnet_wcf/job/master/job/outerloop_osx_debug/) [![Outerloop Release](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_wcf/job/master/outerloop_osx_release.svg?label=outerloop+release+x64)](https://ci.dot.net/job/dotnet_wcf/job/master/job/outerloop_osx_release/)|
+|**Ubuntu 14.04**|[![Debug](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_wcf/job/master/ubuntu14.04_debug.svg?label=debug+x64)](https://ci.dot.net/job/dotnet_wcf/job/master/job/ubuntu14.04_debug/) [![Release](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_wcf/job/master/ubuntu14.04_release.svg?label=release+x64)](https://ci.dot.net/job/dotnet_wcf/job/master/job/ubuntu14.04_release/)|[![Outerloop Debug](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_wcf/job/master/outerloop_ubuntu14.04_debug.svg?label=outerloop+debug+x64)](https://ci.dot.net/job/dotnet_wcf/job/master/job/outerloop_ubuntu14.04_debug/) [![Outerloop Release](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_wcf/job/master/outerloop_ubuntu14.04_release.svg?label=outerloop+release+x64)](https://ci.dot.net/job/dotnet_wcf/job/master/job/outerloop_ubuntu14.04_release/)|
+|**Windows 8.1**|[![Debug](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_wcf/job/master/windows_nt_debug.svg?label=debug+x64)](https://ci.dot.net/job/dotnet_wcf/job/master/job/windows_nt_debug/) [![Release](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_wcf/job/master/windows_nt_release.svg?label=release+x64)](https://ci.dot.net/job/dotnet_wcf/job/master/job/windows_nt_release/)|[![Outerloop Debug](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_wcf/job/master/outerloop_windows_nt_debug.svg?label=outerloop+debug+x64)](https://ci.dot.net/job/dotnet_wcf/job/master/job/outerloop_windows_nt_debug/) [![Outerloop Release](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_wcf/job/master/outerloop_windows_nt_release.svg?label=outerloop+release+x64)](https://ci.dot.net/job/dotnet_wcf/job/master/job/outerloop_windows_nt_release/)|
+|**Windows 8.1 (selfhost server)**||[![Outerloop Debug](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_wcf/job/master/outerloop_selfhost_windows_nt_debug.svg?label=outerloop+debug+x64)](https://ci.dot.net/job/dotnet_wcf/job/master/job/outerloop_selfhost_windows_nt_debug/) [![Outerloop Release](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_wcf/job/master/outerloop_selfhost_windows_nt_release.svg?label=outerloop+release+x64)](https://ci.dot.net/job/dotnet_wcf/job/master/job/outerloop_selfhost_windows_nt_release/)|
+|**Coverage Report**||[![Coverage Status](https://ci.dot.net/job/dotnet_wcf/job/master/job/code_coverage_windows_nt_debug/lastStableBuild/Code_Coverage_Report/badge_combined.svg)](https://ci.dot.net/job/dotnet_wcf/job/master/job/code_coverage_windows_nt_debug/)|
 
 
 
@@ -24,7 +27,7 @@ Want to get more familiar with what's going on in the code?
 * [Pull requests](https://github.com/dotnet/wcf/pulls): [Open](https://github.com/dotnet/wcf/pulls?q=is%3Aopen+is%3Apr)/[Closed](https://github.com/dotnet/wcf/pulls?q=is%3Apr+is%3Aclosed)
 * [![Backlog](https://cloud.githubusercontent.com/assets/1302850/6260412/38987b1e-b793-11e4-9ade-d3fef4c6bf48.png)](https://github.com/dotnet/wcf/issues?q=is%3Aopen+is%3Aissue+label%3A%220+-+Backlog%22), [![Up Next](https://cloud.githubusercontent.com/assets/1302850/6260418/4c2c7a54-b793-11e4-8ce1-a27ff5378d08.png)](https://github.com/dotnet/wcf/issues?q=is%3Aopen+is%3Aissue+label%3A%221+-+Up+Next%22) and [![In Progress](https://cloud.githubusercontent.com/assets/1302850/6260414/41b0fc30-b793-11e4-9d50-d09563cd138a.png)](https://github.com/dotnet/wcf/issues?q=is%3Aopen+is%3Aissue+label%3A%222+-+In+Progress%22) changes
 
-Looking for something to work on? The list of [up-for-grabs issues](https://github.com/dotnet/wcf/labels/up%20for%20grabs) is a great place to start. See some of our guides for more details:
+Looking for something to work on? The list of [up-for-grabs issues](https://github.com/dotnet/wcf/labels/up-for-grabs) is a great place to start. See some of our guides for more details:
 
 * [Contributing Guide](Documentation/contributing.md)
 * [Developer Guide](Documentation/developer-guide.md)
@@ -38,8 +41,20 @@ Want to chat with other members of the WCF community?
 
 [![Join the chat at https://gitter.im/dotnet/wcf](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/dotnet/wcf?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
+This project has adopted the code of conduct defined by the [Contributor Covenant](http://contributor-covenant.org/)
+to clarify expected behavior in our community.
+For more information see the [.NET Foundation Code of Conduct](http://www.dotnetfoundation.org/code-of-conduct).
 
 [.NET Foundation forums]: http://forums.dotnetfoundation.org/
+
+### Reporting security issues and security bugs
+
+Security issues and bugs should be reported privately, via email, to the
+Microsoft Security Response Center (MSRC) <secure@microsoft.com>. You should
+receive a response within 24 hours. If for some reason you do not, please follow
+up via email to ensure we received your original message. Further information,
+including the MSRC PGP key, can be found in the
+[Security TechCenter](https://technet.microsoft.com/en-us/security/ff852094.aspx).
 
 ## WCF Library Components
 
@@ -47,11 +62,11 @@ This repo contains the following library components.
 
 |Component|Description|
 |:--------|:----------|
-|**System.ServiceModel.Primitives**<br/>[![MyGet Package](https://img.shields.io/myget/dotnet-core/v/System.ServiceModel.Primitives.svg)](https://www.myget.org/gallery/dotnet-core)|Provides the common types used by all of the WCF libraries.|
-|**System.ServiceModel.Http**<br/>[![MyGet Package](https://img.shields.io/myget/dotnet-core/v/System.ServiceModel.Http.svg)](https://www.myget.org/gallery/dotnet-core)|Provides the types that permit SOAP messages to be exchanged using Http (example: BasicHttpBinding).|
-|**System.ServiceModel.NetTcp**<br/>[![MyGet Package](https://img.shields.io/myget/dotnet-core/v/System.ServiceModel.NetTcp.svg)](https://www.myget.org/gallery/dotnet-core)|Provides the types that permit SOAP messages to be exchanged using TCP (example: NetTcpBinding).|
-|**System.ServiceModel.Duplex**<br/>[![MyGet Package](https://img.shields.io/myget/dotnet-core/v/System.ServiceModel.Duplex.svg)](https://www.myget.org/gallery/dotnet-core)|Provides the types that permit 2-way ("duplex") exchanges of messages.  This library is currently under construction and not yet fully functional.|
-|**System.ServiceModel.Security**<br/>[![MyGet Package](https://img.shields.io/myget/dotnet-core/v/System.ServiceModel.Security.svg)](https://www.myget.org/gallery/dotnet-core)|Provides the types that support additional security features. This library is currently under construction and not yet fully functional|
+|**System.ServiceModel.Primitives**<br/>[![MyGet Package](https://img.shields.io/myget/dotnet-core/vpre/System.ServiceModel.Primitives.svg)](https://dotnet.myget.org/gallery/dotnet-core)|Provides the common types used by all of the WCF libraries.|
+|**System.ServiceModel.Http**<br/>[![MyGet Package](https://img.shields.io/myget/dotnet-core/vpre/System.ServiceModel.Http.svg)](https://dotnet.myget.org/gallery/dotnet-core)|Provides the types that permit SOAP messages to be exchanged using Http (example: BasicHttpBinding).|
+|**System.ServiceModel.NetTcp**<br/>[![MyGet Package](https://img.shields.io/myget/dotnet-core/vpre/System.ServiceModel.NetTcp.svg)](https://dotnet.myget.org/gallery/dotnet-core)|Provides the types that permit SOAP messages to be exchanged using TCP (example: NetTcpBinding).|
+|**System.ServiceModel.Duplex**<br/>[![MyGet Package](https://img.shields.io/myget/dotnet-core/vpre/System.ServiceModel.Duplex.svg)](https://dotnet.myget.org/gallery/dotnet-core)|Provides the types that permit 2-way ("duplex") exchanges of messages.|
+|**System.ServiceModel.Security**<br/>[![MyGet Package](https://img.shields.io/myget/dotnet-core/vpre/System.ServiceModel.Security.svg)](https://dotnet.myget.org/gallery/dotnet-core)|Provides the types that support additional security features.|
 
 ## License
 
@@ -67,7 +82,7 @@ There are many .NET related projects on GitHub.
 - The
 [.NET home repo](https://github.com/Microsoft/dotnet) links to 100s of .NET projects, from Microsoft and the community.
 - The [.NET Core repo](https://github.com/dotnet/core) links to .NET Core related projects from Microsoft.
-- The [ASP.NET home repo](https://github.com/aspnet/home) is the best place to start learning about ASP.NET 5.
+- The [ASP.NET home repo](https://github.com/aspnet/home) is the best place to start learning about ASP.NET Core.
 - [dotnet.github.io](http://dotnet.github.io) is a good place to discover .NET Foundation projects.
 
 ## The Windows Communication Foundation Story

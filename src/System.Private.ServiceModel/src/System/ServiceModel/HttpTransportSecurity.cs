@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Security.Authentication.ExtendedProtection;
 using System.ServiceModel.Channels;
@@ -10,15 +12,18 @@ namespace System.ServiceModel
     public sealed class HttpTransportSecurity
     {
         internal const HttpClientCredentialType DefaultClientCredentialType = HttpClientCredentialType.None;
-        internal const string DefaultRealm = System.ServiceModel.Channels.HttpTransportDefaults.Realm;
+        internal const HttpProxyCredentialType DefaultProxyCredentialType = HttpProxyCredentialType.None;
+        internal const string DefaultRealm = HttpTransportDefaults.Realm;
 
         private HttpClientCredentialType _clientCredentialType;
+        private HttpProxyCredentialType _proxyCredentialType;
         private string _realm;
 
 
         public HttpTransportSecurity()
         {
             _clientCredentialType = DefaultClientCredentialType;
+            _proxyCredentialType = DefaultProxyCredentialType;
             _realm = DefaultRealm;
         }
 
@@ -31,7 +36,22 @@ namespace System.ServiceModel
                 {
                     throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("value"));
                 }
+
                 _clientCredentialType = value;
+            }
+        }
+
+        public HttpProxyCredentialType ProxyCredentialType
+        {
+            get { return _proxyCredentialType; }
+            set
+            {
+                if (!HttpProxyCredentialTypeHelper.IsDefined(value))
+                {
+                    throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("value"));
+                }
+
+                _proxyCredentialType = value;
             }
         }
 

@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Collections.Generic;
 using System.Runtime;
@@ -476,7 +478,7 @@ namespace System.ServiceModel.Dispatcher
                         ServiceModelActivity.Current.Suspend();
                     }
 
-                    for (; ;)
+                    for (;;)
                     {
                         TimeSpan remaining = timeoutHelper.RemainingTime();
                         Message reply;
@@ -881,7 +883,8 @@ namespace System.ServiceModel.Dispatcher
                 {
                     if (_timer != null)
                     {
-                        _timer.Change(TimeSpan.FromMilliseconds(-1), TimeSpan.FromMilliseconds(-1));
+                        _timer.Dispose();
+                        _timer = null;
                     }
 
                     lock (_parent.ThisLock)

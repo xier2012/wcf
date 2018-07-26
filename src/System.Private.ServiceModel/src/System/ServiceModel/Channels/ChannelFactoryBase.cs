@@ -1,12 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Runtime;
 using System.Threading.Tasks;
 
 namespace System.ServiceModel.Channels
 {
-    public abstract class ChannelFactoryBase : ChannelManagerBase, IChannelFactory
+    public abstract class ChannelFactoryBase : ChannelManagerBase, IChannelFactory, IAsyncChannelFactory
     {
         private TimeSpan _closeTimeout = ServiceDefaults.CloseTimeout;
         private TimeSpan _openTimeout = ServiceDefaults.OpenTimeout;
@@ -173,6 +175,11 @@ namespace System.ServiceModel.Channels
             _channels.Close(timeoutHelper.RemainingTime());
         }
 
+        protected internal override Task OnCloseAsync(TimeSpan timeout)
+        {
+            return OnCloseAsyncInternal(timeout);
+        }
+
         protected override IAsyncResult OnBeginClose(TimeSpan timeout, AsyncCallback callback, object state)
         {
             return new ChainedCloseAsyncResult(timeout, callback, state,
@@ -183,6 +190,27 @@ namespace System.ServiceModel.Channels
         protected override void OnEndClose(IAsyncResult result)
         {
             ChainedCloseAsyncResult.End(result);
+        }
+
+        private async Task OnCloseAsyncInternal(TimeSpan timeout)
+        {
+            IChannel[] currentChannels = _channels.ToArray();
+            TimeoutHelper timeoutHelper = new TimeoutHelper(timeout);
+            foreach (IChannel channel in currentChannels)
+            {
+                await CloseOtherAsync(channel, timeoutHelper.RemainingTime());
+            }
+
+            // CommunicationObjectManager (_channels) is not a CommunicationObject,
+            // so just choose existing synchronous or asynchronous close
+            if (_isSynchronousClose)
+            {
+                await TaskHelpers.CallActionAsync(_channels.Close, timeoutHelper.RemainingTime());
+            }
+            else
+            {
+                await Task.Factory.FromAsync(_channels.BeginClose, _channels.EndClose, timeoutHelper.RemainingTime(), TaskCreationOptions.None);
+            }
         }
     }
 }

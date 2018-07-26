@@ -1,30 +1,18 @@
-<Project ToolsVersion="12.0" DefaultTargets="BuildAndTest" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="14.0" DefaultTargets="BuildAndTest" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="dir.props" />
- <PropertyGroup>
-    <ExcludeProjects>System.Private.ServiceModel\tests\Scenarios\SelfHostWcfService\WcfService.csproj</ExcludeProjects>
+
+  <!-- required to build the projects in their specified order -->
+  <PropertyGroup>
+    <SerializeProjects>true</SerializeProjects>
   </PropertyGroup>
-  
+
   <ItemGroup>
     <Project Include="ref.builds" />
+    <Project Include="shims\shims.proj" />
     <Project Include="src.builds" />
-    <Project Include="tests.builds" />
-  </ItemGroup>
-
-  <!-- Additional WCF tool projects -->
-  <ItemGroup>
-    <Project Include="$(MSBuildProjectDirectory)\System.Private.ServiceModel\tools\test\CertificateCleanup\CertificateCleanup.csproj" />
-  </ItemGroup>
-  
-  <ItemGroup>
-    <Project Include="*\ref\**\*.*proj" Exclude="@(ExcludeProjects)" />
-    <Project Include="*\src\*.csproj" Exclude="$(ExcludeProjects)" />
-    <Project Include="*\src\*.vbproj" Exclude="$(ExcludeProjects)" />
-    <Project Include="*\tests\**\*.csproj" Exclude="$(ExcludeProjects)" />
-    <Project Include="*\tests\**\*.vbproj" Exclude="$(ExcludeProjects)" />
   </ItemGroup>
 
   <Import Project="..\dir.targets" />
-
   <Import Project="..\dir.traversal.targets" />
 
   <Import Project="$(ToolsDir)packages.targets" Condition="Exists('$(ToolsDir)packages.targets') and '$(ImportGetNuGetPackageVersions)' != 'false'" />
@@ -36,12 +24,6 @@
       BuildPackages;
     </TraversalBuildDependsOn>
   </PropertyGroup>
-
-  <PropertyGroup>
-    <GenerateCodeCoverageReportForAll>true</GenerateCodeCoverageReportForAll>
-  </PropertyGroup>
-  <Import Project="$(ToolsDir)CodeCoverage.targets" Condition="Exists('$(ToolsDir)CodeCoverage.targets')" />
-  <Import Project="$(ToolsDir)PerfTesting.targets" Condition="Exists('$(ToolsDir)PerfTesting.targets')" />
 
   <PropertyGroup Condition="Exists('$(ToolsDir)toolruntime.targets')">
     <TraversalBuildDependsOn>

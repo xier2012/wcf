@@ -1,18 +1,17 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IdentityModel.Claims;
 using System.IdentityModel.Policy;
 using System.Runtime;
-using System.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Principal;
 using System.ServiceModel;
-using System.ServiceModel.Diagnostics;
 using System.Text;
-using Microsoft.Win32.SafeHandles;
 
 namespace System.IdentityModel
 {
@@ -168,7 +167,6 @@ namespace System.IdentityModel
                             policyState[i] = done;
                         }
                     }
-
                 } while (oldContextCount < evaluationContext.Generation);
 
                 _authorizationContext = new DefaultAuthorizationContext(evaluationContext);
@@ -211,7 +209,6 @@ namespace System.IdentityModel
             return identity;
         }
 
-#if SUPPORTS_WINDOWSIDENTITY // NegotiateStream
         internal static WindowsIdentity CloneWindowsIdentityIfNecessary(WindowsIdentity wid)
         {
             return CloneWindowsIdentityIfNecessary(wid, wid.AuthenticationType);
@@ -219,7 +216,6 @@ namespace System.IdentityModel
 
         internal static WindowsIdentity CloneWindowsIdentityIfNecessary(WindowsIdentity wid, string authenticationType)
         {
-
             if (wid != null)
             {
                 IntPtr token = wid.AccessToken.DangerousGetHandle();
@@ -232,12 +228,12 @@ namespace System.IdentityModel
         }
 
 
-        static IntPtr UnsafeGetWindowsIdentityToken(WindowsIdentity wid)
+        private static IntPtr UnsafeGetWindowsIdentityToken(WindowsIdentity wid)
         {
             return wid.AccessToken.DangerousGetHandle();
         }
 
-        static WindowsIdentity UnsafeCreateWindowsIdentityFromToken(IntPtr token, string authenticationType)
+        private static WindowsIdentity UnsafeCreateWindowsIdentityFromToken(IntPtr token, string authenticationType)
         {
             if (authenticationType != null)
             {
@@ -248,7 +244,6 @@ namespace System.IdentityModel
                 return new WindowsIdentity(token);
             }
         }
-#endif // SUPPORTS_WINDOWSIDENTITY 
 
         internal static ClaimSet CloneClaimSetIfNecessary(ClaimSet claimSet)
         {
@@ -401,7 +396,7 @@ namespace System.IdentityModel
                 identities.Add(_policy.PrimaryIdentity);
                 properties.Add(SecurityUtils.Identities, identities);
             }
-            
+
             _properties = properties;
         }
 

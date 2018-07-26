@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 namespace System.ServiceModel.Channels
 {
@@ -33,13 +35,8 @@ namespace System.ServiceModel.Channels
 
         internal override IConnectionInitiator GetConnectionInitiator()
         {
-#if FEATURE_NETNATIVE
-            IConnectionInitiator socketConnectionInitiator = new RTSocketConnectionInitiator(
+            IConnectionInitiator socketConnectionInitiator = new SocketConnectionInitiator(
                 ConnectionBufferSize);
-#else
-            IConnectionInitiator socketConnectionInitiator = new CoreClrSocketConnectionInitiator(
-                ConnectionBufferSize);
-#endif
 
             return new BufferedConnectionInitiator(socketConnectionInitiator,
                 MaxOutputDelay, ConnectionBufferSize);

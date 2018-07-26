@@ -1,13 +1,16 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Diagnostics.Contracts;
 using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Security;
+using System.Net.Sockets;
 using System.Runtime;
 using System.Runtime.CompilerServices;
+using System.Security.Authentication;
 using System.Security.Principal;
 using System.ServiceModel.Security;
 using System.ServiceModel.Security.Tokens;
@@ -42,12 +45,15 @@ namespace System.ServiceModel.Channels
         internal const string MIMEVersionHeader = "MIME-Version";
         internal const string ContentEncodingHeader = "Content-Encoding";
 
+        internal const uint CURLE_SSL_CERTPROBLEM = 58;
+        internal const uint CURLE_SSL_CACERT = 60;
+
         internal const uint WININET_E_NAME_NOT_RESOLVED = 0x80072EE7;
         internal const uint WININET_E_CONNECTION_RESET = 0x80072EFF;
         internal const uint WININET_E_INCORRECT_HANDLE_STATE = 0x80072EF3;
         internal const uint ERROR_WINHTTP_SECURE_FAILURE = 0x80072f8f;
 
-        public static Task<NetworkCredential> GetCredentialAsync(AuthenticationSchemes authenticationScheme, SecurityTokenProviderContainer credentialProvider, 
+        public static Task<NetworkCredential> GetCredentialAsync(AuthenticationSchemes authenticationScheme, SecurityTokenProviderContainer credentialProvider,
             OutWrapper<TokenImpersonationLevel> impersonationLevelWrapper, OutWrapper<AuthenticationLevel> authenticationLevelWrapper,
             CancellationToken cancellationToken)
         {
@@ -64,7 +70,7 @@ namespace System.ServiceModel.Channels
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        static async Task<NetworkCredential> GetCredentialCoreAsync(AuthenticationSchemes authenticationScheme,
+        private static async Task<NetworkCredential> GetCredentialCoreAsync(AuthenticationSchemes authenticationScheme,
             SecurityTokenProviderContainer credentialProvider, OutWrapper<TokenImpersonationLevel> impersonationLevelWrapper,
             OutWrapper<AuthenticationLevel> authenticationLevelWrapper, CancellationToken cancellationToken)
         {
@@ -127,6 +133,27 @@ namespace System.ServiceModel.Channels
             Contract.Assert(exception.InnerException != null, "InnerException must be set to be able to convert");
 
             uint hresult = (uint)exception.InnerException.HResult;
+            var innerSocketException = exception.InnerException as SocketException;
+            if (innerSocketException != null)
+            {
+                SocketError socketErrorCode = innerSocketException.SocketErrorCode;
+                switch (socketErrorCode)
+                {
+                    case SocketError.TryAgain:
+                    case SocketError.NoRecovery:
+                    case SocketError.NoData:
+                    case SocketError.HostNotFound:
+                        return new EndpointNotFoundException(SR.Format(SR.EndpointNotFound, request.RequestUri.AbsoluteUri), exception);
+                    default:
+                        break;
+                }
+            }
+
+            if (exception.InnerException is AuthenticationException)
+            {
+                return new SecurityNegotiationException(SR.Format(SR.TrustFailure, request.RequestUri.Authority), exception);
+            }
+
             switch (hresult)
             {
                 // .Net Native HttpClientHandler sometimes reports an incorrect handle state when a connection is aborted, so we treat it as a connection reset error
@@ -134,8 +161,12 @@ namespace System.ServiceModel.Channels
                     goto case WININET_E_CONNECTION_RESET;
                 case WININET_E_CONNECTION_RESET:
                     return new CommunicationException(SR.Format(SR.HttpReceiveFailure, request.RequestUri), exception);
+                // Linux HttpClient returns ERROR_INVALID_HANDLE in the endpoint-not-found case, so map to EndpointNotFoundException
+                case UnsafeNativeMethods.ERROR_INVALID_HANDLE:
                 case WININET_E_NAME_NOT_RESOLVED:
                     return new EndpointNotFoundException(SR.Format(SR.EndpointNotFound, request.RequestUri.AbsoluteUri), exception);
+                case CURLE_SSL_CACERT:
+                case CURLE_SSL_CERTPROBLEM:
                 case ERROR_WINHTTP_SECURE_FAILURE:
                     return new SecurityNegotiationException(SR.Format(SR.TrustFailure, request.RequestUri.Authority), exception);
                 default:
@@ -185,92 +216,6 @@ namespace System.ServiceModel.Channels
             }
 
             return exception;
-        }
-    }
-
-    internal class PreReadStream : DelegatingStream
-    {
-        private byte[] _preReadBuffer;
-
-        public PreReadStream(Stream stream, byte[] preReadBuffer)
-            : base(stream)
-        {
-            _preReadBuffer = preReadBuffer;
-        }
-
-        private bool ReadFromBuffer(byte[] buffer, int offset, int count, out int bytesRead)
-        {
-            if (_preReadBuffer != null)
-            {
-                if (buffer == null)
-                {
-                    throw DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull("buffer");
-                }
-
-                if (offset >= buffer.Length)
-                {
-                    throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("offset", offset,
-                        SR.Format(SR.OffsetExceedsBufferBound, buffer.Length - 1)));
-                }
-
-                if (count < 0)
-                {
-                    throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("count", count,
-                        SR.ValueMustBeNonNegative));
-                }
-
-                if (count == 0)
-                {
-                    bytesRead = 0;
-                }
-                else
-                {
-                    buffer[offset] = _preReadBuffer[0];
-                    _preReadBuffer = null;
-                    bytesRead = 1;
-                }
-
-                return true;
-            }
-
-            bytesRead = -1;
-            return false;
-        }
-
-        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-        {
-            int bytesRead;
-            if (ReadFromBuffer(buffer, offset, count, out bytesRead))
-            {
-                return Task.FromResult(bytesRead);
-            }
-
-            return base.ReadAsync(buffer, offset, count, cancellationToken);
-        }
-
-        public override int Read(byte[] buffer, int offset, int count)
-        {
-            int bytesRead;
-            if (ReadFromBuffer(buffer, offset, count, out bytesRead))
-            {
-                return bytesRead;
-            }
-
-            return base.Read(buffer, offset, count);
-        }
-
-        public override int ReadByte()
-        {
-            if (_preReadBuffer != null)
-            {
-                byte[] tempBuffer = new byte[1];
-                int bytesRead;
-                if (ReadFromBuffer(tempBuffer, 0, 1, out bytesRead))
-                {
-                    return tempBuffer[0];
-                }
-            }
-            return base.ReadByte();
         }
     }
 }

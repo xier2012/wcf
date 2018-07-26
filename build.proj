@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="12.0" DefaultTargets="BuildAndTest" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="dir.props" />
 
   <!-- required to build the projects in their specified order -->
@@ -7,95 +7,75 @@
     <SerializeProjects>true</SerializeProjects>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <BuildPackages Condition="'$(BuildPackages)'==''">true</BuildPackages>
+  </PropertyGroup>
+
+  <Import Project="$(ToolsDir)VersionTools.targets" Condition="Exists('$(ToolsDir)VersionTools.targets')" />
+
   <ItemGroup>
-    <Project Include="src\dirs.proj">
-      <!-- For the root traversal default filter the OSGroup to the OSEnvironment which is the OS we are running on -->
-      <FilterToOSGroup Condition="'$(BuildAllOSGroups)' != 'true'">$(OSEnvironment)</FilterToOSGroup>
-    </Project>
-    <Project Include="src\packages.builds">
-      <!-- When we do a traversal build we build all libraries prior to building packages -->
-      <AdditionalProperties>BuildPackageLibraryReferences=false</AdditionalProperties>
-      <!-- For the root traversal default filter the OSGroup to the OSEnvironment which is the OS we are running on -->
-      <FilterToOSGroup Condition="'$(BuildAllOSGroups)' != 'true'">$(OSEnvironment)</FilterToOSGroup>
-    </Project>
-    <Project Include="src\post.msbuild" />
+    <Project Include="external\dir.proj" />
+    <Project Include="src\dirs.proj" />
+    <Project Include="src\tests.builds" Condition="'$(BuildTests)'=='true'" />
+    <!-- signing must happen before packaging -->
+    <Project Include="src\sign.builds" />
+    <Project Include="src\packages.builds" Condition="'$(BuildPackages)'=='true'" />
   </ItemGroup>
 
   <Import Project="dir.targets" />
 
   <Import Project="dir.traversal.targets" />
 
-  <PropertyGroup>
-    <!--
-      Until we have the full clean\sync\build dev workflow in place we still default to restoring during build.
-      For those that wish to opt-out they can set RestoreDuringBuild=false or pass /p:RestoreDuringBuild=false.
-    -->
-    <RestoreDuringBuild Condition="'$(RestoreDuringBuild)'==''">true</RestoreDuringBuild>
-  </PropertyGroup>
+  <Import Project="$(ToolsDir)clean.targets" />
 
-  <PropertyGroup Condition="'$(RestoreDuringBuild)'=='true'">
+  <PropertyGroup>
     <TraversalBuildDependsOn>
-      ValidateAllProjectDependencies;
-      BatchRestorePackages;
+      GenerateConfigurationProperties;
+      CreateOrUpdateCurrentVersionFile;
       $(TraversalBuildDependsOn);
     </TraversalBuildDependsOn>
   </PropertyGroup>
 
-  <Target Name="BatchRestorePackages">
-    <Message Importance="High" Text="[$([System.DateTime]::Now.ToString('HH:mm:ss.ff'))] Restoring all packages..." />
-    <!-- restore all project.jsons in one pass for perf & to avoid concurrency problems with dnu -->
-    <!-- include ToolsDir to restore test-runtime\project.json as well -->
-    <Exec Command="$(DnuRestoreCommand) &quot;%(DnuRestoreDir.Identity)&quot;" StandardOutputImportance="Low" CustomErrorRegularExpression="(^Unable to locate .*)|(^Updating the invalid lock file with .*)" ContinueOnError="WarnAndContinue" />
-
-    <Message Importance="High" Text="[$([System.DateTime]::Now.ToString('HH:mm:ss.ff'))] Restoring all packages...Done." />
+  <!-- Generate the configurations for this repo -->
+  <UsingTask TaskName="GenerateConfigurationProps" AssemblyFile="$(BuildToolsTaskDir)Microsoft.DotNet.Build.Tasks.dll"/>
+  <Target Name="GenerateConfigurationProperties">
+    <GenerateConfigurationProps Properties="@(Property)" PropertyValues="@(PropertyValue)" PropsFolder="$(BuildConfigurationFolder)" />
   </Target>
 
-  <!-- Task from buildtools that validates dependencies contained in project.json files. -->
-  <UsingTask TaskName="ValidateProjectDependencyVersions" AssemblyFile="$(BuildToolsTaskDir)Microsoft.DotNet.Build.Tasks.dll" />
+  <Target Name="Sync" DependsOnTargets="GenerateConfigurationProperties">
+    <ItemGroup>
+      <ExternalProject Include="external\dir.proj" />
+    </ItemGroup>
 
-  <Target Name="ValidateAllProjectDependencies"
-          Condition="'$(ValidatePackageVersions)'=='true' and '@(ProjectJsonFiles)'!=''">
-    <ValidateProjectDependencyVersions ProjectJsons="@(ProjectJsonFiles)"
-                                       ProhibitFloatingDependencies="$(ProhibitFloatingDependencies)"
-                                       ValidationPatterns="@(ValidationPattern)" />
+    <MSBuild Projects="@(ExternalProject)"
+             ContinueOnError="ErrorAndContinue" />
   </Target>
 
-  <Target Name="UpdateInvalidPackageVersions">
-    <ValidateProjectDependencyVersions ProjectJsons="@(ProjectJsonFiles)"
-                                       ProhibitFloatingDependencies="$(ProhibitFloatingDependencies)"
-                                       ValidationPatterns="@(ValidationPattern)"
-                                       UpdateInvalidDependencies="true" />
+  <UsingTask TaskName="UpdateVSConfigurations" AssemblyFile="$(BuildToolsTaskDir)Microsoft.DotNet.Build.Tasks.dll"/>
+  <Target Name="UpdateVSConfigurations">
+    <Message Importance="High" Text="Updating configurations for projects ..." />
+    <ItemGroup>
+      <_projectsToExcludeFromUpdate Include="$(MSBuildThisFileDirectory)src/**/RestoreSDKProject.csproj" />
+      <_projectsToUpdate Include="$(MSBuildThisFileDirectory)src/**/*.*csproj" Exclude="@(_projectsToExcludeFromUpdate)" />
+      <_projectsToUpdate Include="$(MSBuildThisFileDirectory)src/**/*.*ilproj" Exclude="@(_projectsToExcludeFromUpdate)" />
+      <_solutionsToUpdateFiles Include="$(MSBuildThisFileDirectory)src/*/dir.props" />
+      <_solutionsToUpdate Include="@(_solutionsToUpdateFiles->'%(RootDir)%(Directory)')" Exclude="@(_solutionsToExcludeFromUpdate)" />
+      <_solutionsToUpdate Include="$(MSBuildThisFileDirectory)src/System.ServiceProcess.ServiceController/" >
+        <ExcludePattern>TestNativeService</ExcludePattern>
+      </_solutionsToUpdate>
+    </ItemGroup>
+    <UpdateVSConfigurations ProjectsToUpdate="@(_projectsToUpdate)" SolutionsToUpdate="@(_solutionsToUpdate)" />
+    <Message Importance="High" Text="Updating configurations for projects ... Done." />
   </Target>
 
-  <!-- Tasks from buildtools for easy project.json dependency updates -->
-  <UsingTask TaskName="UpdatePackageDependencyVersion" AssemblyFile="$(BuildToolsTaskDir)Microsoft.DotNet.Build.Tasks.dll" />
-
-  <Target Name="UpdatePackageDependencyVersion">
-    <UpdatePackageDependencyVersion ProjectJsons="@(ProjectJsonFiles)"
-                                    PackageId="$(PackageId)"
-                                    OldVersion="$(OldVersion)"
-                                    NewVersion="$(NewVersion)" />
-  </Target>
-
-  <!-- Override RestorePackages from dir.traversal.targets and do a batch restore -->
-  <Target Name="RestorePackages" DependsOnTargets="BatchRestorePackages" />
-
-  <!-- Override clean from dir.traversal.targets and just remove the full BinDir -->
-  <Target Name="Clean">
+  <!-- Override CleanAllProjects from dir.traversal.targets and just remove the full BinDir -->
+  <Target Name="CleanAllProjects">
     <RemoveDir Directories="$(BinDir)" />
+    <!-- Temporarily outside BinDir -->
+    <RemoveDir Directories="$(PackageInstallPath)" />
   </Target>
 
-  <PropertyGroup>
-    <UserLocalFolder Condition="'$(OsEnvironment)'!='Unix'">$(LocalAppData)/</UserLocalFolder>
-    <UserLocalFolder Condition="'$(OsEnvironment)'=='Unix'">$(HOME)/.local/share/</UserLocalFolder>
-  </PropertyGroup>
-
-  <Target Name="CleanPackages">
-    <RemoveDir Directories="$(PackagesDir)" />
-  </Target>
-
-  <Target Name="CleanPackagesCache">
-    <RemoveDir Directories="$(UserLocalFolder)NuGet/Cache/;$(UserLocalFolder)NuGet/v3-cache/;$(UserLocalFolder)dnu/cache/" />
-  </Target>
+  <!-- Hook that can be used to insert custom build tasks to the build process such as setup and/or cleanup tasks -->
+  <Import Project="build.override.targets" Condition="Exists('build.override.targets')" />
 
 </Project>

@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Globalization;
 using System.IO;
@@ -352,7 +354,18 @@ namespace System.ServiceModel.Channels
             internal override bool IsCharSetSupported(string charSet)
             {
                 Encoding tmp;
-                return TextEncoderDefaults.TryGetEncoding(charSet, out tmp);
+                if (!TextEncoderDefaults.TryGetEncoding(charSet, out tmp))
+                {
+                    // GetEncodingFromContentType supports charset with quotes (by simply stripping them) so we do the same here
+                    // This also gives us parity with Desktop WCF behavior
+                    if (charSet.Length > 2 && charSet[0] == '"' && charSet[charSet.Length - 1] == '"')
+                    {
+                        charSet = charSet.Substring(1, charSet.Length - 2);
+                        return TextEncoderDefaults.TryGetEncoding(charSet, out tmp);
+                    }
+                    return false;
+                }
+                return true;
             }
 
             public override bool IsContentTypeSupported(string contentType)
@@ -459,12 +472,12 @@ namespace System.ServiceModel.Channels
 
             public override ArraySegment<byte> WriteMessage(Message message, int maxMessageSize, BufferManager bufferManager, int messageOffset)
             {
-                return WriteMessageAsync(message, maxMessageSize, bufferManager, messageOffset).WaitForCompletion();
+                return WriteMessageAsync(message, maxMessageSize, bufferManager, messageOffset).WaitForCompletionNoSpin();
             }
 
             public override void WriteMessage(Message message, Stream stream)
             {
-                WriteMessageAsyncInternal(message, stream).WaitForCompletion();
+                WriteMessageAsyncInternal(message, stream).WaitForCompletionNoSpin();
             }
 
             public override Task<ArraySegment<byte>> WriteMessageAsync(Message message, int maxMessageSize, BufferManager bufferManager, int messageOffset)

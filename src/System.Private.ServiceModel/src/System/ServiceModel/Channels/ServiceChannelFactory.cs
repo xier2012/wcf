@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -282,6 +284,11 @@ namespace System.ServiceModel.Channels
             CloseCollectionAsyncResult.End(result);
         }
 
+        protected internal override Task OnCloseAsync(TimeSpan timeout)
+        {
+            return OnCloseAsyncInternal(timeout);
+        }
+
         protected override void OnOpened()
         {
             base.OnOpened();
@@ -390,6 +397,25 @@ namespace System.ServiceModel.Channels
                 return null;
         }
 
+        private async Task OnCloseAsyncInternal(TimeSpan timeout)
+        {
+            TimeoutHelper timeoutHelper = new TimeoutHelper(timeout);
+            while (true)
+            {
+                int count;
+                IChannel channel;
+                lock (ThisLock)
+                {
+                    count = _channelsList.Count;
+                    if (count == 0)
+                        return;
+                    channel = _channelsList[0];
+                }
+
+                await CloseOtherAsync(channel, timeoutHelper.RemainingTime());
+            }
+        }
+
         protected abstract IChannelBinder CreateInnerChannelBinder(EndpointAddress address, Uri via);
 
         internal abstract class TypedServiceChannelFactory<TChannel> : ServiceChannelFactory
@@ -450,14 +476,12 @@ namespace System.ServiceModel.Channels
 
             protected internal override Task OnCloseAsync(TimeSpan timeout)
             {
-                this.OnClose(timeout);
-                return TaskHelpers.CompletedTask();
+                return OnCloseAsyncInternal(timeout);
             }
 
             protected internal override Task OnOpenAsync(TimeSpan timeout)
             {
-                this.OnOpen(timeout);
-                return TaskHelpers.CompletedTask();
+                return OpenOtherAsync(_innerChannelFactory, timeout);
             }
 
             public override T GetProperty<T>()
@@ -474,6 +498,21 @@ namespace System.ServiceModel.Channels
                 }
 
                 return _innerChannelFactory.GetProperty<T>();
+            }
+
+            private new async Task OnCloseAsyncInternal(TimeSpan timeout)
+            {
+                TimeoutHelper timeoutHelper = new TimeoutHelper(timeout);
+                if (_isSynchronousClose)
+                {
+                    await TaskHelpers.CallActionAsync(base.OnClose, timeoutHelper.RemainingTime());
+                }
+                else
+                {
+                    await Task.Factory.FromAsync(base.OnBeginClose, base.OnEndClose, timeoutHelper.RemainingTime(), TaskCreationOptions.None);
+                }
+
+                await CloseOtherAsync(_innerChannelFactory, timeoutHelper.RemainingTime());
             }
         }
 

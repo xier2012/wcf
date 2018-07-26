@@ -1,5 +1,7 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Net;
 using System.Net.Security;
@@ -152,7 +154,7 @@ namespace System.ServiceModel.Channels
         public const bool RequireClientCertificate = false;
         public const int MaxFaultSize = MaxBufferSize;
         public const int MaxSecurityFaultSize = 16384;
-        public const SslProtocols SslProtocols = 
+        public const SslProtocols SslProtocols =
                                            // SSL3 is not supported in CoreFx.
                                            System.Security.Authentication.SslProtocols.Tls |
                                            System.Security.Authentication.SslProtocols.Tls11 |
@@ -240,45 +242,36 @@ namespace System.ServiceModel.Channels
         public const int ServiceSession = 0;
     }
 
-    public static class HttpTransportDefaults
+    internal static class HttpTransportDefaults
     {
-        public const bool AllowCookies = false;
-        public const AuthenticationSchemes AuthenticationScheme = AuthenticationSchemes.Anonymous;
-        public const bool DecompressionEnabled = true;
-        public const HostNameComparisonMode HostNameComparisonMode = System.ServiceModel.HostNameComparisonMode.StrongWildcard;
-        public const bool KeepAliveEnabled = true;
-        public const string Realm = "";
-        public const TransferMode TransferMode = System.ServiceModel.TransferMode.Buffered;
-        public const bool UnsafeConnectionNtlmAuthentication = false;
-        public const bool UseDefaultWebProxy = true;
-        public const string UpgradeHeader = "Upgrade";
-        public const string ConnectionHeader = "Connection";
-        public const HttpMessageHandlerFactory MessageHandlerFactory = null;
+        internal const bool AllowCookies = false;
+        internal const AuthenticationSchemes AuthenticationScheme = AuthenticationSchemes.Anonymous;
+        internal const bool BypassProxyOnLocal = false;
+        internal const bool DecompressionEnabled = true;
+        internal const HostNameComparisonMode HostNameComparisonMode = System.ServiceModel.HostNameComparisonMode.StrongWildcard;
+        internal const bool KeepAliveEnabled = true;
+        internal const Uri ProxyAddress = null;
+        internal const AuthenticationSchemes ProxyAuthenticationScheme = AuthenticationSchemes.Anonymous;
+        internal const string Realm = "";
+        internal const TransferMode TransferMode = System.ServiceModel.TransferMode.Buffered;
+        internal const bool UnsafeConnectionNtlmAuthentication = false;
+        internal const bool UseDefaultWebProxy = true;
+        internal const string UpgradeHeader = "Upgrade";
+        internal const string ConnectionHeader = "Connection";
+        internal const HttpMessageHandlerFactory MessageHandlerFactory = null;
 
-        public static TimeSpan RequestInitializationTimeout { get { return TimeSpanHelper.FromMilliseconds(0, RequestInitializationTimeoutString); } }
-        public const string RequestInitializationTimeoutString = "00:00:00";
+        internal static TimeSpan RequestInitializationTimeout => TimeSpanHelper.FromMilliseconds(0, RequestInitializationTimeoutString);
+        internal const string RequestInitializationTimeoutString = "00:00:00";
 
-        // We use 0 as the default value of the MaxPendingAccepts property on HttpTransportBindingElement. In 4.5 we always
-        // use 10 under the hood if the default value is picked. In future releases, we could adjust the underlying default
-        // value when we have the dynamic expending pattern of BeginGetContext call implemented and the heap fragmentation issue
-        // from NCL layer solved.
-        private const int PendingAcceptsConstant = 10;
-        public const int DefaultMaxPendingAccepts = 0;
-        public const int MaxPendingAcceptsUpperLimit = 100000;
-        public static int GetEffectiveMaxPendingAccepts(int maxPendingAccepts)
-        {
-            return maxPendingAccepts == HttpTransportDefaults.DefaultMaxPendingAccepts ?
-                                        PendingAcceptsConstant :
-                                        maxPendingAccepts;
-        }
+        internal const int DefaultMaxPendingAccepts = 0;
+        internal const int MaxPendingAcceptsUpperLimit = 100000;
 
-
-        public static WebSocketTransportSettings GetDefaultWebSocketTransportSettings()
+        internal static WebSocketTransportSettings GetDefaultWebSocketTransportSettings()
         {
             return new WebSocketTransportSettings();
         }
 
-        public static MessageEncoderFactory GetDefaultMessageEncoderFactory()
+        internal static MessageEncoderFactory GetDefaultMessageEncoderFactory()
         {
             return new TextMessageEncoderFactory(MessageVersion.Default, TextEncoderDefaults.Encoding, EncoderDefaults.MaxReadPoolSize, EncoderDefaults.MaxWritePoolSize, EncoderDefaults.ReaderQuotas);
         }

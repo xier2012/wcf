@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Collections.Generic;
 using System.IdentityModel.Policy;
@@ -30,7 +32,8 @@ namespace System.IdentityModel.Claims
         {
             if (certificate == null)
                 throw DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull("certificate");
-            _certificate = clone ? new X509Certificate2(certificate.Handle) : certificate;
+            
+             _certificate = clone ? new X509Certificate2(certificate) : certificate;
         }
 
         private X509CertificateClaimSet(X509CertificateClaimSet from)
@@ -113,7 +116,6 @@ namespace System.IdentityModel.Claims
                         _issuer = this;
                     else
                         _issuer = new X500DistinguishedNameClaimSet(_certificate.IssuerName);
-
                 }
                 return _issuer;
             }
@@ -158,7 +160,7 @@ namespace System.IdentityModel.Claims
             }
         }
 
-        IList<Claim> InitializeClaimsCore()
+        private IList<Claim> InitializeClaimsCore()
         {
             List<Claim> claims = new List<Claim>();
             byte[] thumbprint = _certificate.GetCertHash();
@@ -195,11 +197,7 @@ namespace System.IdentityModel.Claims
 
             value = _certificate.GetNameInfo(X509NameType.UpnName, false);
             if (!string.IsNullOrEmpty(value))
-#if SUPPORTS_WINDOWSIDENTITY
                 claims.Add(Claim.CreateUpnClaim(value));
-#else
-                throw ExceptionHelper.PlatformNotSupported();
-#endif // SUPPORTS_WINDOWSIDENTITY
 
             value = _certificate.GetNameInfo(X509NameType.UrlName, false);
             if (!string.IsNullOrEmpty(value))
@@ -212,7 +210,7 @@ namespace System.IdentityModel.Claims
             return claims;
         }
 
-        void EnsureClaims()
+        private void EnsureClaims()
         {
             if (_claims != null)
                 return;
@@ -220,7 +218,7 @@ namespace System.IdentityModel.Claims
             _claims = InitializeClaimsCore();
         }
 
-        static bool SupportedClaimType(string claimType)
+        private static bool SupportedClaimType(string claimType)
         {
             return claimType == null ||
                 ClaimTypes.Thumbprint.Equals(claimType) ||
@@ -308,15 +306,15 @@ namespace System.IdentityModel.Claims
                     {
                         return new string[0];
                     }
-                    
+
                     // SubjectAlternativeNames might contain something other than a dNSName, 
                     // so we have to parse through and only use the dNSNames
                     // <identifier><delimter><value><separator(s)>
 
-                    string[] rawDnsEntries = 
+                    string[] rawDnsEntries =
                         asnString.Split(new string[1] { X509SubjectAlternativeNameConstants.Separator }, StringSplitOptions.RemoveEmptyEntries);
 
-                    List<string> dnsEntries = new List<string>(); 
+                    List<string> dnsEntries = new List<string>();
 
                     for (int i = 0; i < rawDnsEntries.Length; i++)
                     {
@@ -326,7 +324,7 @@ namespace System.IdentityModel.Claims
                             dnsEntries.Add(keyval[1]);
                         }
                     }
-                    
+
                     return dnsEntries.ToArray();
                 }
             }
@@ -345,17 +343,17 @@ namespace System.IdentityModel.Claims
             return _disposed ? base.ToString() : SecurityUtils.ClaimSetToString(this);
         }
 
-        void ThrowIfDisposed()
+        private void ThrowIfDisposed()
         {
             if (_disposed)
             {
                 throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ObjectDisposedException(this.GetType().FullName));
             }
         }
-        
-        class X500DistinguishedNameClaimSet : DefaultClaimSet, IIdentityInfo
+
+        private class X500DistinguishedNameClaimSet : DefaultClaimSet, IIdentityInfo
         {
-            IIdentity _identity;
+            private IIdentity _identity;
 
             public X500DistinguishedNameClaimSet(X500DistinguishedName x500DistinguishedName)
             {
@@ -381,19 +379,19 @@ namespace System.IdentityModel.Claims
         {
             public const string Oid = "2.5.29.17";
 
-            private static readonly string _identifier;
-            private static readonly char _delimiter;
-            private static readonly string _separator;
+            private static readonly string s_identifier;
+            private static readonly char s_delimiter;
+            private static readonly string s_separator;
 
-            private static bool _successfullyInitialized = false;
-            private static Exception _initializationException;
+            private static bool s_successfullyInitialized = false;
+            private static Exception s_initializationException;
 
             public static string Identifier
             {
                 get
                 {
                     EnsureInitialized();
-                    return _identifier;
+                    return s_identifier;
                 }
             }
 
@@ -402,7 +400,7 @@ namespace System.IdentityModel.Claims
                 get
                 {
                     EnsureInitialized();
-                    return _delimiter;
+                    return s_delimiter;
                 }
             }
             public static string Separator
@@ -410,22 +408,22 @@ namespace System.IdentityModel.Claims
                 get
                 {
                     EnsureInitialized();
-                    return _separator;
+                    return s_separator;
                 }
             }
 
             private static void EnsureInitialized()
             {
-                if (!_successfullyInitialized)
+                if (!s_successfullyInitialized)
                 {
                     throw new FormatException(string.Format(
-                        "There was an error detecting the identifier, delimiter, and separator for X509CertificateClaims on this platform.{0}" + 
+                        "There was an error detecting the identifier, delimiter, and separator for X509CertificateClaims on this platform.{0}" +
                         "Detected values were: Identifier: '{1}'; Delimiter:'{2}'; Separator:'{3}'",
                         Environment.NewLine,
-                        _identifier,
-                        _delimiter,
-                        _separator
-                    ), _initializationException);
+                        s_identifier,
+                        s_delimiter,
+                        s_separator
+                    ), s_initializationException);
                 }
             }
 
@@ -452,11 +450,11 @@ namespace System.IdentityModel.Claims
                     // Parse: <identifier><delimter><value><separator(s)>
 
                     int delimiterIndex = x509ExtensionFormattedString.IndexOf(subjectName1) - 1;
-                    _delimiter = x509ExtensionFormattedString[delimiterIndex];
+                    s_delimiter = x509ExtensionFormattedString[delimiterIndex];
 
                     // Make an assumption that all characters from the the start of string to the delimiter 
                     // are part of the identifier
-                    _identifier = x509ExtensionFormattedString.Substring(0, delimiterIndex);
+                    s_identifier = x509ExtensionFormattedString.Substring(0, delimiterIndex);
 
                     int separatorFirstChar = delimiterIndex + subjectName1.Length + 1;
                     int separatorLength = 1;
@@ -464,22 +462,22 @@ namespace System.IdentityModel.Claims
                     {
                         // We advance until the first character of the identifier to determine what the
                         // separator is. This assumes that the identifier assumption above is correct
-                        if (x509ExtensionFormattedString[i] == _identifier[0])
+                        if (x509ExtensionFormattedString[i] == s_identifier[0])
                         {
                             break;
                         }
-                        
+
                         separatorLength++;
                     }
 
-                    _separator = x509ExtensionFormattedString.Substring(separatorFirstChar, separatorLength);
+                    s_separator = x509ExtensionFormattedString.Substring(separatorFirstChar, separatorLength);
 
-                    _successfullyInitialized = true;
+                    s_successfullyInitialized = true;
                 }
                 catch (Exception ex)
                 {
-                    _successfullyInitialized = false;
-                    _initializationException = ex;
+                    s_successfullyInitialized = false;
+                    s_initializationException = ex;
                 }
             }
         }
@@ -509,7 +507,8 @@ namespace System.IdentityModel.Claims
         internal X509Identity(X509Certificate2 certificate, bool clone, bool disposable)
             : base(X509, X509)
         {
-            _certificate = clone ? new X509Certificate2(certificate.Handle) : certificate;
+             _certificate = clone ? new X509Certificate2(certificate) : certificate;
+
             _disposable = clone || disposable;
         }
 
@@ -531,7 +530,7 @@ namespace System.IdentityModel.Claims
             }
         }
 
-        string GetName()
+        private string GetName()
         {
             if (_x500DistinguishedName != null)
                 return _x500DistinguishedName.Name;
@@ -576,7 +575,7 @@ namespace System.IdentityModel.Claims
             }
         }
 
-        void ThrowIfDisposed()
+        private void ThrowIfDisposed()
         {
             if (_disposed)
             {

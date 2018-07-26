@@ -1,140 +1,80 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.ServiceModel;
-using System.Threading.Tasks;
+using Infrastructure.Common;
 using Xunit;
+using System;
+using System.Reflection;
+using System.Xml.Serialization;
 
-public static class XmlSerializerFormatTests
+public static partial class XmlSerializerFormatTests
 {
-    private static readonly string s_basicEndpointAddress = Endpoints.HttpBaseAddress_Basic;
+#if SVCUTILTESTS
+    private static readonly string s_serializationModeSetterName = "set_Mode";
 
-    [Fact]
-    [OuterLoop]
-    public static void XmlSerializerFormat_RoundTrips_String()
+    static XmlSerializerFormatTests()
     {
-        BasicHttpBinding binding = new BasicHttpBinding();
-        EndpointAddress endpointAddress = new EndpointAddress(s_basicEndpointAddress);
-        ChannelFactory<IWcfServiceXmlGenerated> factory = new ChannelFactory<IWcfServiceXmlGenerated>(binding, endpointAddress);
-        IWcfServiceXmlGenerated serviceProxy = factory.CreateChannel();
-
-        var response = serviceProxy.EchoXmlSerializerFormat("message");
-        Assert.Equal("message", response);
+        MethodInfo method = typeof(XmlSerializer).GetMethod(s_serializationModeSetterName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.True(method != null, $"No method named {s_serializationModeSetterName}");
+        method.Invoke(null, new object[] { 3 });
     }
+#endif
 
-    [Fact]
+    [WcfFact]
     [OuterLoop]
-    public static void XmlSerializerFormat_Using_SupportsFault_RoundTrips_String()
+    public static void XmlSerializerFormatAttribute_SupportFaults()
     {
-        BasicHttpBinding binding = new BasicHttpBinding();
-        EndpointAddress endpointAddress = new EndpointAddress(s_basicEndpointAddress);
-        ChannelFactory<IWcfServiceXmlGenerated> factory = new ChannelFactory<IWcfServiceXmlGenerated>(binding, endpointAddress);
-        IWcfServiceXmlGenerated serviceProxy = factory.CreateChannel();
+        BasicHttpBinding binding = null;
+        EndpointAddress endpointAddress = null;
+        ChannelFactory<IXmlSFAttribute> factory = null;
+        IXmlSFAttribute serviceProxy = null;
 
-        var response = serviceProxy.EchoXmlSerializerFormatSupportFaults("message", false);
-        Assert.Equal("message", response);
-    }
-
-    [Fact]
-    [OuterLoop]
-    public static void XmlSerializerFormat_Using_SupportsFault_Throws_FaultException()
-    {
-        BasicHttpBinding binding = new BasicHttpBinding();
-        EndpointAddress endpointAddress = new EndpointAddress(s_basicEndpointAddress);
-        ChannelFactory<IWcfServiceXmlGenerated> factory = new ChannelFactory<IWcfServiceXmlGenerated>(binding, endpointAddress);
-        IWcfServiceXmlGenerated serviceProxy = factory.CreateChannel();
-
-        var errorMessage = "ErrorMessage";
-
-        try
-        {
-            var response = serviceProxy.EchoXmlSerializerFormatSupportFaults(errorMessage, true);
-        }
-        catch (FaultException e)
-        {
-            Assert.Equal(errorMessage, e.Message);
-            return;
-        }
-
-        // we shouldn't reach here.
-        Assert.True(false);
-    }
-
-    [Fact]
-    [OuterLoop]
-    public static void XmlSerializerFormat_RoundTrips_Using_Rpc()
-    {
-        BasicHttpBinding binding = new BasicHttpBinding();
-        EndpointAddress endpointAddress = new EndpointAddress(s_basicEndpointAddress);
-        ChannelFactory<IWcfServiceXmlGenerated> factory = new ChannelFactory<IWcfServiceXmlGenerated>(binding, endpointAddress);
-        IWcfServiceXmlGenerated serviceProxy = factory.CreateChannel();
-
-        var response = serviceProxy.EchoXmlSerializerFormatUsingRpc("message");
-        Assert.Equal("message", response);
-    }
-
-    [Fact]
-    [OuterLoop]
-    public static void XmlSerializerFormat_RoundTrips_String_AsyncTask()
-    {
-        BasicHttpBinding binding = new BasicHttpBinding();
-        EndpointAddress endpointAddress = new EndpointAddress(s_basicEndpointAddress);
-        ChannelFactory<IWcfServiceXmlGenerated> factory = new ChannelFactory<IWcfServiceXmlGenerated>(binding, endpointAddress);
-        IWcfServiceXmlGenerated serviceProxy = factory.CreateChannel();
-
-
-        Task<string> response = serviceProxy.EchoXmlSerializerFormatAsync("message");
-        response.Wait();
-        Assert.True(response != null);
-        Assert.Equal("message", response.Result);
-    }
-
-    [Fact]
-    [OuterLoop]
-    public static void XmlSerializerFormat_RoundTrips_CompositeType()
-    {
-        BasicHttpBinding binding = new BasicHttpBinding();
-        EndpointAddress endpointAddress = new EndpointAddress(s_basicEndpointAddress);
-        ChannelFactory<IWcfServiceXmlGenerated> factory = new ChannelFactory<IWcfServiceXmlGenerated>(binding, endpointAddress);
-        IWcfServiceXmlGenerated serviceProxy = factory.CreateChannel();
-
-
-        var input = new XmlCompositeType();
-        input.StringValue = "message";
-        input.BoolValue = false;
-        var response = serviceProxy.GetDataUsingXmlSerializer(input);
-        Assert.True(response != null);
-        Assert.Equal("message", response.StringValue);
-        Assert.True(!input.BoolValue);
-    }
-
-    [Fact]
-    [OuterLoop]
-    public static void XmlSerializerFormat_MessageContract_LoginService()
-    {
         // *** SETUP *** \\
-        BasicHttpBinding binding = new BasicHttpBinding();
-        EndpointAddress endpointAddress = new EndpointAddress(s_basicEndpointAddress);
-        ChannelFactory<ILoginService> factory = new ChannelFactory<ILoginService>(binding, endpointAddress);
-        ILoginService serviceProxy = factory.CreateChannel();
-        
-        var request = new LoginRequest();
-        request.clientId = "1";
-        request.user = "2";
-        request.pwd = "3";
+        binding = new BasicHttpBinding();
+        endpointAddress = new EndpointAddress(Endpoints.XmlSFAttribute_Address);
+        factory = new ChannelFactory<IXmlSFAttribute>(binding, endpointAddress);
+        serviceProxy = factory.CreateChannel();
 
+        // *** EXECUTE 1st Variation *** \\
         try
         {
-            // *** EXECUTE *** \\
-            var response = serviceProxy.Login(request);
+            // Calling the Operation Contract overload with "SupportFaults" not set, default is "false"
+            serviceProxy.TestXmlSerializerSupportsFaults_False();
+        }
+        catch (FaultException<FaultDetailWithXmlSerializerFormatAttribute> fException)
+        {
+            // In this variation the Fault message should have been returned using the Data Contract Serializer.
+            Assert.True(fException.Detail.UsedDataContractSerializer, "The returning Fault Detail should have used the Data Contract Serializer.");
+            Assert.True(fException.Detail.UsedXmlSerializer == false, "The returning Fault Detail should NOT have used the Xml Serializer.");
+        }
+        catch (Exception exception)
+        {
+            Assert.True(false, $"Test Failed, caught unexpected exception.\nException: {exception.ToString()}\nException Message: {exception.Message}");
+        }
+        finally
+        {
+            // *** ENSURE CLEANUP *** \\
+            ScenarioTestHelpers.CloseCommunicationObjects((ICommunicationObject)serviceProxy);
+        }
 
-            // *** VALIDATE *** \\
-            Assert.True(response != null);
-            Assert.Equal("123", response.@return);
-
-            // *** CLEANUP *** \\
-            ((ICommunicationObject)serviceProxy).Close();
-            factory.Close();
+        // *** EXECUTE 2nd Variation *** \\
+        try
+        {
+            serviceProxy = factory.CreateChannel();
+            serviceProxy.TestXmlSerializerSupportsFaults_True();
+        }
+        catch (FaultException<FaultDetailWithXmlSerializerFormatAttribute> fException)
+        {
+            // In this variation the Fault message should have been returned using the Xml Serializer.
+            Assert.True(fException.Detail.UsedDataContractSerializer == false, "The returning Fault Detail should NOT have used the Data Contract Serializer.");
+            Assert.True(fException.Detail.UsedXmlSerializer, "The returning Fault Detail should have used the Xml Serializer.");
+        }
+        catch (Exception exception)
+        {
+            Assert.True(false, $"Test Failed, caught unexpected exception.\nException: {exception.ToString()}\nException Message: {exception.Message}");
         }
         finally
         {
@@ -143,40 +83,110 @@ public static class XmlSerializerFormatTests
         }
     }
 
-    [Fact]
+    [WcfFact]
     [OuterLoop]
-    // The test is for the case where a paramerter type contains a field 
-    // never used.The test is to make sure the reflection info of the type 
-    // of the unused field would be kept by Net Native toolchain.
-    public static void XmlSerializerFormat_ComplexType_With_FieldType_Never_Used()
+    public static void XmlSFAttributeRpcEncSingleNsTest()
     {
+        RunVariation(Endpoints.BasciHttpRpcEncSingleNs_Address);
+    }
+
+    [WcfFact]
+    [OuterLoop]
+    public static void XmlSFAttributeRpcLitSingleNsTest()
+    {
+        RunVariation(Endpoints.BasicHttpRpcLitSingleNs_Address);
+    }
+
+    [WcfFact]
+    [OuterLoop]
+    public static void XmlSFAttributeDocLitSingleNsTest()
+    {
+        RunVariation(Endpoints.BasicHttpDocLitSingleNs_Address);
+    }
+
+    [WcfFact]
+    [OuterLoop]
+    public static void XmlSFAttributeRpcEncDualNsTest()
+    {
+        RunVariation(Endpoints.BasicHttpRpcEncDualNs_Address, true);
+    }
+
+    [WcfFact]
+    [OuterLoop]
+    public static void XmlSFAttributeRpcLitDualNsTest()
+    {
+        RunVariation(Endpoints.BasicHttpRpcLitDualNs_Address, true);
+    }
+
+    [WcfFact]
+    [OuterLoop]
+    public static void XmlSFAttributeDocLitDualNsTest()
+    {
+        RunVariation(Endpoints.BasicHttpDocLitDualNs_Address, true);
+    }
+
+    private static void RunVariation(string serviceAddress, bool isMultiNs = false)
+    {
+        BasicHttpBinding binding = null;
+        EndpointAddress endpointAddress = null;
+        ChannelFactory<ICalculator> factory1 = null;
+        ChannelFactory<IHelloWorld> factory2 = null;
+        ICalculator serviceProxy1 = null;
+        IHelloWorld serviceProxy2 = null;
+
         // *** SETUP *** \\
-        BasicHttpBinding binding = new BasicHttpBinding();
-        EndpointAddress endpointAddress = new EndpointAddress(s_basicEndpointAddress);
-        ChannelFactory<IWcfServiceXmlGenerated> factory = new ChannelFactory<IWcfServiceXmlGenerated>(binding, endpointAddress);
-        IWcfServiceXmlGenerated serviceProxy = factory.CreateChannel();
+        binding = new BasicHttpBinding();
+        endpointAddress = new EndpointAddress(serviceAddress);
+        factory1 = new ChannelFactory<ICalculator>(binding, endpointAddress);
+        serviceProxy1 = factory1.CreateChannel();
+        if (isMultiNs)
+        {
+            factory2 = new ChannelFactory<IHelloWorld>(binding, endpointAddress);
+            serviceProxy2 = factory2.CreateChannel();
+        }
 
-        var complex = new XmlVeryComplexType();
-        complex.Id = 1;
-
+        // *** EXECUTE Variation *** \\
         try
         {
-            // *** EXECUTE *** \\
-            var response = serviceProxy.EchoXmlVeryComplexType(complex);
+            var dateTime = DateTime.Now;
+            string testStr = "test string";
+            var intParams = new IntParams() { P1 = 5, P2 = 10 };
+            var floatParams = new FloatParams() { P1 = 5.0f, P2 = 10.0f };
+            var byteParams = new ByteParams() { P1 = 5, P2 = 10 };
 
-            // *** VALIDATE *** \\
-            Assert.True(response != null);
-            Assert.True(response.NonInstantiatedField == null);
-            Assert.Equal(complex.Id, response.Id);
+            Assert.Equal(3, serviceProxy1.Sum2(1, 2));
+            Assert.Equal(intParams.P1 + intParams.P2, serviceProxy1.Sum(intParams));
+            Assert.Equal(string.Format("{0}{1}", intParams.P1, intParams.P2), serviceProxy1.Concatenate(intParams));
+            Assert.Equal((float)(floatParams.P1 / floatParams.P2), serviceProxy1.Divide(floatParams));
+            Assert.Equal((new byte[] { byteParams.P1, byteParams.P2 }), serviceProxy1.CreateSet(byteParams));
+            Assert.Equal(dateTime, serviceProxy1.ReturnInputDateTime(dateTime));
 
-            // *** CLEANUP *** \\
-            ((ICommunicationObject)serviceProxy).Close();
-            factory.Close();
+            Guid guid = Guid.NewGuid();
+            serviceProxy1.AddIntParams(guid, intParams);
+            IntParams outputIntParams = serviceProxy1.GetAndRemoveIntParams(guid);
+            Assert.NotNull(outputIntParams);
+            Assert.Equal(intParams.P1, outputIntParams.P1);
+            Assert.Equal(intParams.P2, outputIntParams.P2);
+
+            if (isMultiNs)
+            {
+                Guid guid2 = Guid.NewGuid();
+                serviceProxy2.AddString(guid2, testStr);
+                Assert.Equal(testStr, serviceProxy2.GetAndRemoveString(guid2));
+            }
+        }
+        catch (Exception ex)
+        {
+            Assert.True(false, ex.Message);
         }
         finally
         {
             // *** ENSURE CLEANUP *** \\
-            ScenarioTestHelpers.CloseCommunicationObjects((ICommunicationObject)serviceProxy, factory);
+            ScenarioTestHelpers.CloseCommunicationObjects((ICommunicationObject)serviceProxy1);
+            if (isMultiNs)
+            {
+                ScenarioTestHelpers.CloseCommunicationObjects((ICommunicationObject)serviceProxy2);
+            }
         }
     }
 }

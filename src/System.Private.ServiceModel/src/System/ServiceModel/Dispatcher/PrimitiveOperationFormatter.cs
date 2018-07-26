@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.ServiceModel.Channels;
 using System.ServiceModel.Description;
@@ -19,8 +21,10 @@ namespace System.ServiceModel.Dispatcher
         private XmlDictionaryString _replyAction;
         private ActionHeader _actionHeaderNone;
         private ActionHeader _actionHeader10;
+        private ActionHeader _actionHeaderAugust2004;
         private ActionHeader _replyActionHeaderNone;
         private ActionHeader _replyActionHeader10;
+        private ActionHeader _replyActionHeaderAugust2004;
         private XmlDictionaryString _requestWrapperName;
         private XmlDictionaryString _requestWrapperNamespace;
         private XmlDictionaryString _responseWrapperName;
@@ -106,6 +110,20 @@ namespace System.ServiceModel.Dispatcher
                 return _actionHeader10;
             }
         }
+ 
+        private ActionHeader ActionHeaderAugust2004
+        {
+            get
+            {
+                if (_actionHeaderAugust2004 == null)
+                {
+                    _actionHeaderAugust2004 =
+                        ActionHeader.Create(_action, AddressingVersion.WSAddressingAugust2004);
+                }
+ 
+                return _actionHeaderAugust2004;
+            }
+        }
 
 
         private ActionHeader ReplyActionHeaderNone
@@ -136,6 +154,19 @@ namespace System.ServiceModel.Dispatcher
             }
         }
 
+        private ActionHeader ReplyActionHeaderAugust2004
+        {
+            get
+            {
+                if (_replyActionHeaderAugust2004 == null)
+                {
+                    _replyActionHeaderAugust2004 =
+                        ActionHeader.Create(_replyAction, AddressingVersion.WSAddressingAugust2004);
+                }
+ 
+                return _replyActionHeaderAugust2004;
+            }
+        }
 
         private static XmlDictionaryString AddToDictionary(XmlDictionary dictionary, string s)
         {
@@ -164,7 +195,11 @@ namespace System.ServiceModel.Dispatcher
                 return null;
             }
 
-            if (addressing == AddressingVersion.WSAddressing10)
+            if (addressing == AddressingVersion.WSAddressingAugust2004)
+            {
+                return ActionHeaderAugust2004;
+            }
+            else if (addressing == AddressingVersion.WSAddressing10)
             {
                 return ActionHeader10;
             }
@@ -179,14 +214,18 @@ namespace System.ServiceModel.Dispatcher
             }
         }
 
-        ActionHeader GetReplyActionHeader(AddressingVersion addressing)
+        private ActionHeader GetReplyActionHeader(AddressingVersion addressing)
         {
             if (_replyAction == null)
             {
                 return null;
             }
 
-            if (addressing == AddressingVersion.WSAddressing10)
+            if (addressing == AddressingVersion.WSAddressingAugust2004)
+            {
+                return ReplyActionHeaderAugust2004;
+            }
+            else if (addressing == AddressingVersion.WSAddressing10)
             {
                 return ReplyActionHeader10;
             }
@@ -449,7 +488,7 @@ namespace System.ServiceModel.Dispatcher
             }
         }
 
-        void DeserializeRequest(XmlDictionaryReader reader, object[] parameters)
+        private void DeserializeRequest(XmlDictionaryReader reader, object[] parameters)
         {
             if (_requestWrapperName != null)
             {

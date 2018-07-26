@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Diagnostics.Contracts;
 using System.Runtime.Diagnostics;
@@ -44,7 +46,7 @@ namespace System.Runtime
         [Fx.Tag.SecurityNote(Critical = "Access critical field context and critical property " +
             "CallbackHelper.InvokeWithContextCallback, calls into critical method " +
             "PartialTrustHelpers.CaptureSecurityContextNoIdentityFlow, calls into critical method ScheduleCallback; " +
-            "since the invoked method and the capturing of the security contex are de-coupled, can't " +
+            "since the invoked method and the capturing of the security context are de-coupled, can't " +
             "be treated as safe")]
         [SecurityCritical]
         protected void Schedule()
@@ -141,7 +143,7 @@ namespace System.Runtime
                 }
                 else
                 {
-                    this._callback(_state);
+                    _callback(_state);
                 }
             }
             [Fx.Tag.SecurityNote(Critical = "Implements a the critical abstract Trace method, " +
@@ -156,7 +158,7 @@ namespace System.Runtime
                     try
                     {
                         EtwDiagnosticTrace.ActivityId = _activityId;
-                        this._callback(_state);
+                        _callback(_state);
                     }
                     finally
                     {
@@ -166,7 +168,7 @@ namespace System.Runtime
                 else
                 {
                     Guid previous = Guid.Empty;
-                    this._callback(_state);
+                    _callback(_state);
                 }
             }
         }

@@ -5,10 +5,7 @@ using System.Threading.Tasks;
 using System.IO;
 using System.ServiceModel;
 using System.Runtime.Serialization;
-using System.ServiceModel;
-using System.ServiceModel.Channels;
-using System.ServiceModel.Description;
-using System.CodeDom.Compiler;
+using System;
 
 namespace WcfService1
 {
@@ -22,6 +19,10 @@ namespace WcfService1
         [OperationContract(Name = "GetData")]
         Task<string> GetDataAsync(int value);
 
+        [OperationContract(Name = "GetData", AsyncPattern = true)]
+        IAsyncResult BeginGetData(int value, AsyncCallback callback, object state);
+        string EndGetData(IAsyncResult iar);
+
         [OperationContract]
         CompositeType GetDataUsingDataContract(CompositeType composite);
     }
@@ -31,35 +32,33 @@ namespace WcfService1
     [DataContract]
     public class CompositeType
     {
-        bool boolValue = true;
-        string stringValue = "Hello ";
+        private bool _boolValue = true;
+        private string _stringValue = "Hello ";
 
         [DataMember]
         public bool BoolValue
         {
-            get { return boolValue; }
-            set { boolValue = value; }
+            get { return _boolValue; }
+            set { _boolValue = value; }
         }
 
         [DataMember]
         public string StringValue
         {
-            get { return stringValue; }
-            set { stringValue = value; }
+            get { return _stringValue; }
+            set { _stringValue = value; }
         }
     }
 
-    [ServiceContract (CallbackContract=typeof(IDuplexCallback))]
+    [ServiceContract(CallbackContract = typeof(IDuplexCallback))]
     public interface IDuplexService
     {
-        //[OperationContract(IsOneWay = true)]
         [OperationContract]
         int SetData(int value, int callbackCallsToMake);
 
         [OperationContract(Name = "SetData")]
         Task<int> SetDataAsync(int value, int callbackCallsToMake);
 
-        //
         [OperationContract]
         int GetAsyncCallbackData(int value, int asyncCallbacksToMake);
         [OperationContract(Name = "GetAsyncCallbackData")]
@@ -68,7 +67,6 @@ namespace WcfService1
 
     public interface IDuplexCallback
     {
-        //[OperationContract(IsOneWay = true)]
         [OperationContract]
         int EchoSetData(int value);
 
@@ -87,10 +85,34 @@ namespace WcfService1
         [OperationContract]
         int GetIntFromStream(Stream stream);
 
-        [OperationContractAttribute(Action = "http://tempuri.org/IStreamingService/EchoStream", ReplyAction = "http://tempuri.org/IStreamingService/EchoStreamResponse")]
+        [OperationContract(Action = "http://tempuri.org/IStreamingService/EchoStream", ReplyAction = "http://tempuri.org/IStreamingService/EchoStreamResponse")]
         Stream EchoStream(Stream stream);
 
-        [OperationContractAttribute(Action = "http://tempuri.org/IStreamingService/EchoStream", ReplyAction = "http://tempuri.org/IStreamingService/EchoStreamResponse")]
+
+        [OperationContract(Name = "GetStreamFromInt")]
+        Task<Stream> GetStreamFromIntAsync(int data);
+
+        [OperationContract(Name = "GetIntFromStream")]
+        Task<int> GetIntFromStreamAsync(Stream stream);
+
+        [OperationContract(Name = "EchoStream", Action = "http://tempuri.org/IStreamingService/EchoStream", ReplyAction = "http://tempuri.org/IStreamingService/EchoStreamResponse")]
         Task<Stream> EchoStreamAsync(Stream stream);
+    }
+
+    [ServiceContract(CallbackContract = typeof(IDuplexStreamingCallback))]
+    public interface IDuplexStreamingService : IStreamingService
+    {
+    }
+
+    public interface IDuplexStreamingCallback
+    {
+        [OperationContract]
+        Stream GetStreamFromInt(int data);
+
+        [OperationContract]
+        int GetIntFromStream(Stream stream);
+
+        [OperationContract]
+        Stream EchoStream(Stream stream);
     }
 }

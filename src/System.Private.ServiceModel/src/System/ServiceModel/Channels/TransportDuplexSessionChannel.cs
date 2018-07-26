@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Runtime;
 using System.Runtime.Diagnostics;
@@ -30,9 +32,9 @@ namespace System.ServiceModel.Channels
                   ITransportFactorySettings settings,
                   EndpointAddress localAddress,
                   Uri localVia,
-                  EndpointAddress remoteAddresss,
+                  EndpointAddress remoteAddress,
                   Uri via)
-                : base(manager, remoteAddresss, via, settings.ManualAddressing, settings.MessageVersion)
+                : base(manager, remoteAddress, via, settings.ManualAddressing, settings.MessageVersion)
         {
             _localAddress = localAddress;
             _localVia = localVia;
@@ -57,6 +59,14 @@ namespace System.ServiceModel.Channels
         {
             get { return _duplexSession; }
             protected set { _duplexSession = value; }
+        }
+
+        protected SemaphoreSlim SendLock
+        {
+            get
+            {
+                return _sendLock;
+            }
         }
 
         protected BufferManager BufferManager
@@ -533,7 +543,7 @@ namespace System.ServiceModel.Channels
                     AsyncCompletionResult completionResult;
                     if (this.IsStreamedOutput)
                     {
-                        completionResult = this.StartWritingStreamedMessage(message, timeoutHelper.RemainingTime(), s_onWriteComplete, this);
+                        completionResult = this.StartWritingStreamedMessage(message, timeoutHelper.RemainingTime(), s_onWriteComplete, tcs);
                     }
                     else
                     {

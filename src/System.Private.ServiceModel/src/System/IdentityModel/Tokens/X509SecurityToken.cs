@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -52,7 +54,8 @@ namespace System.IdentityModel.Tokens
 
             _id = id;
 
-            _certificate = clone ? new X509Certificate2(certificate.Handle) : certificate;
+            _certificate = clone ? new X509Certificate2(certificate) : certificate;
+
             // if the cert needs to be cloned then the token owns the clone and should dispose it
             _disposable = clone || disposable;
         }

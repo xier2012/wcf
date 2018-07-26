@@ -1,17 +1,19 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System;
 using System.ServiceModel;
 using System.ServiceModel.Channels;
 using System.Text;
-
+using Xunit;
 using Infrastructure.Common;
 
 public static class ScenarioTestHelpers
 {
     private const string testString = "Hello";
-    
+
     //WebSocket constants
     public const int SixtyFourMB = 64 * 1024 * 1024;
     public const string ContentToReplace = "ContentToReplace";
@@ -31,6 +33,15 @@ public static class ScenarioTestHelpers
         }
     }
 
+    // Returns true only if the test services are accessed via "localhost".
+    // This test is not intended to be used to determine whether test services 
+    // are running on the same machine as the tests.
+    public static bool IsLocalHost()
+    {
+        string serviceUri = TestProperties.GetProperty(TestProperties.ServiceUri_PropertyName);
+        return String.Equals("localhost", serviceUri, StringComparison.OrdinalIgnoreCase);
+    }
+
     public static string GenerateStringValue(int length)
     {
         // There's no great reason why we use this set of characters - we just want to be able to generate a longish string
@@ -45,38 +56,40 @@ public static class ScenarioTestHelpers
         return builder.ToString();
     }
 
-    public static bool RunBasicEchoTest(Binding binding, string address, string variation, StringBuilder errorBuilder, Action<ChannelFactory> factorySettings = null)
+    public static bool RunBasicEchoTest(Binding binding, string address, string variation, Action<ChannelFactory> factorySettings = null)
     {
         Logger.LogInformation("Starting basic echo test.\nTest variation:...\n{0}\nUsing address: '{1}'", variation, address);
-
+        ChannelFactory<IWcfService> factory = null;
+        IWcfService serviceProxy = null;
         bool success = false;
+
         try
         {
-            ChannelFactory<IWcfService> factory = new ChannelFactory<IWcfService>(binding, new EndpointAddress(address));
-
+            // *** SETUP *** \\
+            factory = new ChannelFactory<IWcfService>(binding, new EndpointAddress(address));
             if (factorySettings != null)
             {
                 factorySettings(factory);
             }
+            serviceProxy = factory.CreateChannel();
 
-            IWcfService serviceProxy = factory.CreateChannel();
-
+            // *** EXECUTE *** \\
             string result = serviceProxy.Echo(testString);
-            success = string.Equals(result, testString);
 
-            if (!success)
-            {
-                errorBuilder.AppendLine(String.Format("    Error: expected response from service: '{0}' Actual was: '{1}'", testString, result));
-            }
+            // *** VALIDATE *** \\
+            Assert.True(String.Equals(result, testString), String.Format("    Error: expected response from service: '{0}' Actual was: '{1}'", testString, result));
+
+            // *** CLEANUP *** \\
+            factory.Close();
+            ((ICommunicationObject)serviceProxy).Close();
         }
-        catch (Exception ex)
+        finally
         {
-            Logger.LogInformation("    {0}", ex.Message);
-            errorBuilder.AppendLine(String.Format("    Error: Unexpected exception was caught while doing the basic echo test for variation...\n'{0}'\nException: {1}", variation, ex.ToString()));
+            // *** ENSURE CLEANUP *** \\
+            ScenarioTestHelpers.CloseCommunicationObjects((ICommunicationObject)serviceProxy, factory);
         }
 
         Logger.LogInformation("  Result: {0} ", success ? "PASS" : "FAIL");
-
         return success;
     }
 
@@ -170,30 +183,30 @@ public static class ScenarioTestHelpers
     /// In the order in which they need to be cleaned up.</param>
     public static void CloseCommunicationObjects(params ICommunicationObject[] objects)
     {
-        foreach(ICommunicationObject comObj in objects)
+        foreach (ICommunicationObject comObj in objects)
         {
             try
             {
-                if(comObj == null)
+                if (comObj == null)
                 {
                     continue;
                 }
                 // Only want to call Close if it is in the Opened state
-                if(comObj.State == CommunicationState.Opened)
+                if (comObj.State == CommunicationState.Opened)
                 {
                     comObj.Close();
                 }
                 // Anything not closed by this point should be aborted
-                if(comObj.State != CommunicationState.Closed)
+                if (comObj.State != CommunicationState.Closed)
                 {
                     comObj.Abort();
                 }
             }
-            catch(TimeoutException)
+            catch (TimeoutException)
             {
                 comObj.Abort();
             }
-            catch(CommunicationException)
+            catch (CommunicationException)
             {
                 comObj.Abort();
             }

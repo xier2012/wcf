@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.IdentityModel.Tokens;
 using System.Security.Cryptography.X509Certificates;
@@ -12,61 +14,39 @@ namespace System.IdentityModel.Selectors
     public class X509SecurityTokenProvider : SecurityTokenProvider, IDisposable
     {
         private X509Certificate2 _certificate;
+        private bool _clone;
 
-        public X509SecurityTokenProvider(X509Certificate2 certificate)
+        public X509SecurityTokenProvider(X509Certificate2 certificate) : this(certificate, true) { }
+
+        internal X509SecurityTokenProvider(X509Certificate2 certificate, bool clone)
         {
             if (certificate == null)
             {
                 throw DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull("certificate");
             }
 
-            _certificate = new X509Certificate2(certificate.Handle);
-        }
-
-        public X509SecurityTokenProvider(StoreLocation storeLocation, StoreName storeName, X509FindType findType, object findValue)
-        {
-            if (findValue == null)
+            _clone = clone;
+            if (_clone)
             {
-                throw DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull("findValue");
+                _certificate = new X509Certificate2(certificate);
             }
-
-            X509Store store = new X509Store(storeName, storeLocation);
-            X509Certificate2Collection certificates = null;
-            try
+            else
             {
-                store.Open(OpenFlags.ReadOnly);
-                certificates = store.Certificates.Find(findType, findValue, false);
-                if (certificates.Count < 1)
-                {
-                    throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new SecurityTokenException(SR.Format(SR.CannotFindCert, storeName, storeLocation, findType, findValue)));
-                }
-                if (certificates.Count > 1)
-                {
-                    throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new SecurityTokenException(SR.Format(SR.FoundMultipleCerts, storeName, storeLocation, findType, findValue)));
-                }
-
-                _certificate = new X509Certificate2(certificates[0].Handle);
-            }
-            finally
-            {
-                System.ServiceModel.Security.SecurityUtils.ResetAllCertificates(certificates);
-                store.Dispose();
+                _certificate = certificate;
             }
         }
 
-        public X509Certificate2 Certificate
+        protected override Task<SecurityToken> GetTokenCoreAsync(CancellationToken cancellationToken)
         {
-            get { return _certificate; }
-        }
-
-        protected override async Task<SecurityToken> GetTokenCoreAsync(CancellationToken cancellationToken)
-        {
-            return await Task.FromResult<SecurityToken>(new X509SecurityToken(_certificate));
+            return Task.FromResult<SecurityToken>(new X509SecurityToken(certificate: _certificate, clone: _clone, disposable: _clone));
         }
 
         public void Dispose()
         {
-            System.ServiceModel.Security.SecurityUtils.ResetCertificate(_certificate);
+            if (_clone)
+            {
+                System.ServiceModel.Security.SecurityUtils.ResetCertificate(_certificate);
+            }
         }
     }
 }

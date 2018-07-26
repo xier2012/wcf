@@ -1,9 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.IO;
 using System.Runtime;
-using System.ServiceModel;
 using System.ServiceModel.Channels;
 using System.ServiceModel.Description;
 using System.ServiceModel.Diagnostics;
@@ -239,10 +240,12 @@ namespace System.ServiceModel.Dispatcher
         {
             private Message _message;
             private XmlDictionaryReader _reader;
+            private BufferedReadStream _bufferedReadStream;
             private long _position;
             private string _wrapperName, _wrapperNs;
             private string _elementName, _elementNs;
             private bool _isRequest;
+
             internal MessageBodyStream(Message message, string wrapperName, string wrapperNs, string elementName, string elementNs, bool isRequest)
             {
                 _message = message;
@@ -252,6 +255,28 @@ namespace System.ServiceModel.Dispatcher
                 _elementName = elementName;
                 _elementNs = elementNs;
                 _isRequest = isRequest;
+            }
+
+            public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            {
+                if (_reader == null)
+                {
+                    if (_message.Properties.ContainsKey(BufferedReadStream.BufferedReadStreamPropertyName))
+                    {
+                        _bufferedReadStream =
+                            _message.Properties[BufferedReadStream.BufferedReadStreamPropertyName] as BufferedReadStream;
+                    }
+                }
+
+                using (TaskHelpers.RunTaskContinuationsOnOurThreads())
+                {
+                    if (_bufferedReadStream != null)
+                    {
+                        await _bufferedReadStream.PreReadBufferAsync(cancellationToken);
+                    }
+
+                    return Read(buffer, offset, count);
+                }
             }
 
             public override int Read(byte[] buffer, int offset, int count)

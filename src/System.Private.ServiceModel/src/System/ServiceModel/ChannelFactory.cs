@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Runtime;
 using System.ServiceModel.Channels;
@@ -317,15 +319,7 @@ namespace System.ServiceModel
         {
             if (_innerFactory != null)
             {
-                IAsyncChannelFactory asyncFactory = _innerFactory as IAsyncChannelFactory;
-                if (asyncFactory != null)
-                {
-                    await asyncFactory.CloseAsync(timeout);
-                }
-                else
-                {
-                    _innerFactory.Close(timeout);
-                }
+                await CloseOtherAsync(_innerFactory, timeout);
             }
         }
 
@@ -343,15 +337,7 @@ namespace System.ServiceModel
         {
             if (_innerFactory != null)
             {
-                IAsyncChannelFactory asyncFactory = _innerFactory as IAsyncChannelFactory;
-                if (asyncFactory != null)
-                {
-                    await asyncFactory.OpenAsync(timeout);
-                }
-                else
-                {
-                    _innerFactory.Open(timeout);
-                }
+                await OpenOtherAsync(_innerFactory, timeout);
             }
         }
 

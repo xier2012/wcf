@@ -1,130 +1,87 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.ServiceModel;
-using System.Text;
+using System.ServiceModel.Channels;
+using System.ServiceModel.Description;
+using System.ServiceModel.Dispatcher;
+
+using Infrastructure.Common;
 using Xunit;
 
-public static class FaultExceptionTests
+public static partial class FaultExceptionTests
 {
-    [Fact]
+    [WcfFact]
     [OuterLoop]
-    public static void FaultException_Throws_WithFaultDetail()
+    public static void TestAccessFaultContractInfo()
     {
-        string faultMsg = "Test Fault Exception";
-        StringBuilder errorBuilder = new StringBuilder();
-
-        try
-        {
-            BasicHttpBinding binding = new BasicHttpBinding();
-            using (ChannelFactory<IWcfService> factory = new ChannelFactory<IWcfService>(binding, new EndpointAddress(Endpoints.HttpBaseAddress_Basic)))
-            {
-                IWcfService serviceProxy = factory.CreateChannel();
-                serviceProxy.TestFault(faultMsg);
-            }
-        }
-        catch (Exception e)
-        {
-            if (e.GetType() != typeof(FaultException<FaultDetail>))
-            {
-                string error = string.Format("Expected exception: {0}, actual: {1}\r\n{2}",
-                                             "FaultException<FaultDetail>", e.GetType(), e.ToString());
-                if (e.InnerException != null)
-                    error += String.Format("\r\nInnerException:\r\n{0}", e.InnerException.ToString());
-                errorBuilder.AppendLine(error);
-            }
-            else
-            {
-                FaultException<FaultDetail> faultException = (FaultException<FaultDetail>)(e);
-                string actualFaultMsg = ((FaultDetail)(faultException.Detail)).Message;
-                if (actualFaultMsg != faultMsg)
-                {
-                    errorBuilder.AppendLine(string.Format("Expected Fault Message: {0}, actual: {1}", faultMsg, actualFaultMsg));
-                }
-            }
-
-            Assert.True(errorBuilder.Length == 0, string.Format("Test Scenario: FaultException_Throws_WithFaultDetail FAILED with the following errors: {0}", errorBuilder));
-            return;
-        }
-
-        Assert.True(false, "Expected FaultException<FaultDetail> exception, but no exception thrown.");
-    }
-
-    [Fact]
-    [OuterLoop]
-    public static void UnexpectedException_Throws_FaultException()
-    {
-        string faultMsg = "This is a test fault msg";
-        StringBuilder errorBuilder = new StringBuilder();
-
-        try
-        {
-            BasicHttpBinding binding = new BasicHttpBinding();
-            using (ChannelFactory<IWcfService> factory = new ChannelFactory<IWcfService>(binding, new EndpointAddress(Endpoints.HttpBaseAddress_Basic)))
-            {
-                IWcfService serviceProxy = factory.CreateChannel();
-                serviceProxy.ThrowInvalidOperationException(faultMsg);
-            }
-        }
-        catch (Exception e)
-        {
-            if (e.GetType() != typeof(FaultException<ExceptionDetail>))
-            {
-                errorBuilder.AppendLine(string.Format("Expected exception: {0}, actual: {1}", "FaultException<ExceptionDetail>", e.GetType()));
-            }
-            else
-            {
-                FaultException<ExceptionDetail> faultException = (FaultException<ExceptionDetail>)(e);
-                string actualFaultMsg = ((ExceptionDetail)(faultException.Detail)).Message;
-                if (actualFaultMsg != faultMsg)
-                {
-                    errorBuilder.AppendLine(string.Format("Expected Fault Message: {0}, actual: {1}", faultMsg, actualFaultMsg));
-                }
-            }
-
-            Assert.True(errorBuilder.Length == 0, string.Format("Test Scenario: UnexpectedException_Throws_FaultException FAILED with the following errors: {0}", errorBuilder));
-            return;
-        }
-
-        Assert.True(false, "Expected FaultException<FaultDetail> exception, but no exception thrown.");
-    }
-
-    [Fact]
-    [OuterLoop]
-    public static void FaultException_Throws_With_Int()
-    {
-        ChannelFactory<IWcfService> factory = null;
+        MyClientBase<IWcfService> client = null;
         IWcfService serviceProxy = null;
-        BasicHttpBinding binding = null;
-
-        int expectedFaultCode = 5;  // arbitrary integer choice
-        FaultException<int> thrownException = null;
+        string action = @"http://tempuri.org/IWcfService/TestFaultFaultDetailFault";
+        Type detail = typeof(FaultDetail);
 
         try
         {
             // *** SETUP *** \\
-            binding = new BasicHttpBinding();
-            factory = new ChannelFactory<IWcfService>(binding, new EndpointAddress(Endpoints.HttpBaseAddress_Basic));
-            serviceProxy = factory.CreateChannel();
+            CustomBinding customBinding = new CustomBinding();
+            customBinding.Elements.Add(new TextMessageEncodingBindingElement());
+            customBinding.Elements.Add(new HttpTransportBindingElement());
+
+            client = new MyClientBase<IWcfService>(customBinding, new EndpointAddress(Endpoints.DefaultCustomHttp_Address));
+            client.Endpoint.EndpointBehaviors.Add(new TestFaultContractInfosBehavior());
+            serviceProxy = client.ChannelFactory.CreateChannel();
 
             // *** EXECUTE *** \\
-            thrownException = Assert.Throws <FaultException<int>>(() =>
-            {
-                serviceProxy.TestFaultInt(expectedFaultCode);
-            });
+            var input = new object[] { new FaultDetail(), new KnownTypeA() };
+            // Use exiting service as we only need to verify FaultContractInfo can be accessed from ClientOperation
+            serviceProxy.TestFaultWithKnownType(null, input);
 
-            // *** VALIDATE *** \\
-            Assert.Equal(expectedFaultCode, thrownException.Detail);
+            //Verify
+            Assert.True(TestFaultContractInfosBehavior.testFaultWithKnownTypeClientOp != null, "Expected testFaultWithKnownTypeClientOp is NOT null");
+            Assert.True(TestFaultContractInfosBehavior.testFaultWithKnownTypeClientOp.FaultContractInfos.Count == 1, string.Format("expected FaultContractInfos count is 1, actual: {0}", TestFaultContractInfosBehavior.testFaultWithKnownTypeClientOp.FaultContractInfos.Count));
+            Assert.True(TestFaultContractInfosBehavior.testFaultWithKnownTypeClientOp.FaultContractInfos[0].Action == action, string.Format("expected FaultContractInfo Action is {0}, actual: {1}", action, TestFaultContractInfosBehavior.testFaultWithKnownTypeClientOp.FaultContractInfos[0].Action));
+            Assert.True(TestFaultContractInfosBehavior.testFaultWithKnownTypeClientOp.FaultContractInfos[0].Detail == detail, string.Format("expected FaultContractInfo Detail is {0}, actual: {1}", detail.ToString(), TestFaultContractInfosBehavior.testFaultWithKnownTypeClientOp.FaultContractInfos[0].Detail.ToString()));
 
-            // *** CLEANUP *** \\
-            factory.Close();
-            ((ICommunicationObject)serviceProxy).Close();
         }
         finally
         {
             // *** ENSURE CLEANUP *** \\
-            ScenarioTestHelpers.CloseCommunicationObjects((ICommunicationObject)serviceProxy, factory);
+            ScenarioTestHelpers.CloseCommunicationObjects((ICommunicationObject)serviceProxy, (ICommunicationObject)client);
         }
+    }
+}
+
+public class TestFaultContractInfosBehavior : IEndpointBehavior
+{
+    public static ClientOperation testFaultWithKnownTypeClientOp;
+    public TestFaultContractInfosBehavior()
+    {
+    }
+
+    public void AddBindingParameters(ServiceEndpoint endpoint, BindingParameterCollection bindingParameters)
+    {
+    }
+
+    public void ApplyClientBehavior(ServiceEndpoint endpoint, ClientRuntime clientRuntime)
+    {
+        foreach (ClientOperation clientOperation in clientRuntime.ClientOperations)
+        {
+            if (clientOperation.Name == "TestFaultWithKnownType")
+            {
+                testFaultWithKnownTypeClientOp = clientOperation;
+                return;
+            }
+        }
+
+        throw new Exception("Expected TestFaultWithKnownType in the ClientOperations, Actual:  TestFaultWithKnownType NOT Found");
+    }
+    public void ApplyDispatchBehavior(ServiceEndpoint endpoint, EndpointDispatcher endpointDispatcher)
+    {
+    }
+
+    public void Validate(ServiceEndpoint endpoint)
+    {
     }
 }

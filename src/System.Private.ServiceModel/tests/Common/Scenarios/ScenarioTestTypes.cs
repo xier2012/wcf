@@ -1,5 +1,7 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System;
 using System.Collections.Concurrent;
@@ -14,6 +16,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
+using System.Xml.Serialization;
 
 namespace TestTypes
 {
@@ -94,48 +97,46 @@ namespace TestTypes
         }
     }
 
-    //// Needed by the MahjongApp Scenario tests
     [DataContract(Name = "ResultOf{0}", Namespace = "http://www.contoso.com/wcfnamespace")]
     public class ResultObject<TEntity>
     {
-        private string _errorMessage;
+        private string _resultMessage;
 
-        public ResultObject()
+        public static ResultObject<T> CreateSuccessObject<T>()
         {
-            _errorMessage = "OK";
-            this.HttpStatusCode = System.Net.HttpStatusCode.OK;
-            this.ErrorCode = 0;
+            return new ResultObject<T>
+            {
+                Result = default(T),
+                ErrorCode = (int)TestTypes.ErrorCode.Ok,
+                HttpStatusCode = System.Net.HttpStatusCode.OK,
+                ResultMessage = TestTypes.ResultMessage.GetErrorDescription(TestTypes.ErrorCode.Ok)
+            };
         }
 
-        public static ResultObject<T> CopyResultErrorsStatus<T, D>(ResultObject<D> anotherResult)
+        public static ResultObject<T> CreateFailureObject<T>()
         {
-            return new ResultObject<T> { ErrorCode = anotherResult.ErrorCode, ErrorMessage = anotherResult.ErrorMessage, HttpStatusCode = anotherResult.HttpStatusCode };
-        }
-
-        public static ResultObject<T> CreateDefault<T>()
-        {
-            return new ResultObject<T> { Result = default(T), ErrorCode = 0, ErrorMessage = TestTypes.ErrorMessage.Get(TestTypes.ErrorCode.Ok) };
-        }
-
-        public void Exception(System.Exception ex)
-        {
-            this.ErrorCode = -1;
-            this.ErrorMessage = (ex == null) ? "unexpected" : ex.Message;
+            return new ResultObject<T>
+            {
+                Result = default(T),
+                ErrorCode = (int)TestTypes.ErrorCode.UserNotAuthenticated,
+                HttpStatusCode = System.Net.HttpStatusCode.Unauthorized,
+                ResultMessage = TestTypes.ResultMessage.GetErrorDescription(TestTypes.ErrorCode.UserNotAuthenticated)
+            };
         }
 
         [DataMember]
         public int ErrorCode { get; set; }
 
         [DataMember]
-        public string ErrorMessage
+        public string ResultMessage
         {
             get
             {
-                return _errorMessage;
+                return _resultMessage;
             }
             set
             {
-                _errorMessage = value;
+                _resultMessage = value;
             }
         }
 
@@ -146,118 +147,25 @@ namespace TestTypes
         public TEntity Result { get; set; }
     }
 
-    public static class ErrorMessage
+    public static class ResultMessage
     {
-        private static Dictionary<ErrorCode, string> s_localizedErrorCodes;
-
-        public static string Get(ErrorCode errorCode)
-        {
-            if (s_localizedErrorCodes != null)
-            {
-                return (s_localizedErrorCodes.ContainsKey(errorCode) ? s_localizedErrorCodes[errorCode] : s_localizedErrorCodes[ErrorCode.UnknownException]);
-            }
-            return "Unexpected exception";
-        }
-
         public static string GetErrorDescription(ErrorCode errorCode)
         {
             switch (errorCode)
             {
                 case ErrorCode.Ok:
-                    return "Success";
-
-                case ErrorCode.DcXboxTokeNull:
-                case ErrorCode.DcDailyFileNotAvailable:
-                case ErrorCode.DcDailyFileBroken:
-                    return "XboxErrorText";
-
-                case ErrorCode.DcMonthlyFileNotAvailable:
-                case ErrorCode.DcMonthlyFileBroken:
-                    return "DCDownloadingDataErrorText";
-
-                case ErrorCode.DcCanNotWriteMonthlyUserProgress:
-                case ErrorCode.DcCanNotWriteDailyUserProgress:
-                    return "XboxErrorSavingText";
-
-                case ErrorCode.NotOwner:
-                    return "Current user is not owner of theme and can't change it";
-
-                case ErrorCode.ThemeNotFound:
-                    return "Theme not found and can't be updated";
-
-                case ErrorCode.AsyncOperationFault:
-                    return "AsyncOperationFault";
-
-                case ErrorCode.DataNotFound:
-                    return "Data not found";
-
-                case ErrorCode.CantShare:
-                    return "Theme can't be shared due to internal error";
-
-                case ErrorCode.GamePlayIsNotValid:
-                    return "Game play is not valid";
+                    return "Authentication Succeeded";
 
                 case ErrorCode.UserNotAuthenticated:
-                    return "User not authenticated";
-
-                case ErrorCode.UnknownException:
-                    return "Exception cant be handled correctly";
-
-                case ErrorCode.NullData:
-                    return "Null Data was passed to the service";
-
-                case ErrorCode.SameData:
-                    return "Same data was requested";
-
-                case ErrorCode.OnlineDataReceived:
-                    return "Online Data received successfully";
-
-                case ErrorCode.OfflineDataReceived:
-                    return "Offline Data received successfully";
-
-                case ErrorCode.OfflineOnlineDataReceived:
-                    return "Online and Offline Data received successfully";
-
-                case ErrorCode.LatencyOverhead:
-                    return "Request latency overhead";
+                    return "Authentication Failed";
             }
             return "Unexpected exception";
-        }
-
-        public static void Init(Dictionary<ErrorCode, string> localizedErrorCodes)
-        {
-            ErrorMessage.s_localizedErrorCodes = localizedErrorCodes;
         }
     }
 
     public enum ErrorCode
     {
-        AsyncOperationFault = 0x67,
-        CantShare = 0x69,
-        DataNotFound = 0x68,
-        DcCanNotWriteDailyUserProgress = 7,
-        DcCanNotWriteMonthlyUserProgress = 6,
-        DcDailyFileBroken = 5,
-        DcDailyFileNotAvailable = 4,
-        DcFileBroken = 8,
-        DcMonthlyFileBroken = 3,
-        DcMonthlyFileNotAvailable = 2,
-        DcUserMonthlyFileIsNotAvaliable = 9,
-        DcXboxTokeNull = 1,
-        DeserializeError = 12,
-        GamePlayIsNotValid = 0xc9,
-        LatencyOverhead = 0x198,
-        NotOwner = 0x65,
-        NullData = 0x195,
-        OfflineDataReceived = 0x321,
-        OfflineOnlineDataReceived = 0x322,
         Ok = 0,
-        OnlineDataReceived = 800,
-        PremiumErrorNoInternetConnection = 0x1f7,
-        SameData = 0x130,
-        SponsorThemeIncorrectFormat = 15,
-        ThemeNotFound = 0x66,
-        UnknownException = 0x194,
         UserNotAuthenticated = 0x191
     }
 
@@ -387,6 +295,25 @@ public class FaultDetail
     }
 
     public FaultDetail(string message)
+    {
+        _report = message;
+    }
+
+    [DataMember]
+    public string Message
+    {
+        get { return _report; }
+        set { _report = value; }
+    }
+}
+
+
+[DataContract(Name = "FaultDetail2", Namespace = "http://www.contoso.com/wcfnamespace")]
+public class FaultDetail2
+{
+    private string _report;
+
+    public FaultDetail2(string message)
     {
         _report = message;
     }
@@ -819,6 +746,75 @@ public class MyClientBase : ClientBase<IWcfServiceGenerated>
         : base(binding, endpointAddress)
     {
     }
+
+    public IWcfServiceGenerated Proxy
+    {
+        get { return base.Channel; }
+    }
+}
+
+// This helper class is used for ClientBase<T> tests
+public class MyClientBaseWithChannelBase : ClientBase<IWcfServiceBeginEndGenerated>
+{
+    public MyClientBaseWithChannelBase(Binding binding, EndpointAddress endpointAddress)
+        : base(binding, endpointAddress)
+    {
+    }
+
+    public IWcfServiceBeginEndGenerated Proxy
+    {
+        get { return base.Channel; }
+    }
+
+    protected override IWcfServiceBeginEndGenerated CreateChannel()
+    {
+        return new MyChannelBase(this);
+    }
+
+    private class MyChannelBase : ChannelBase<IWcfServiceBeginEndGenerated>, IWcfServiceBeginEndGenerated
+    {
+        public MyChannelBase(ClientBase<IWcfServiceBeginEndGenerated> client) :
+            base(client)
+        {
+        }
+
+        public IAsyncResult BeginEcho(string message, AsyncCallback callback, object asyncState)
+        {
+            object[] _args = new object[1];
+            _args[0] = message;
+            return (IAsyncResult)base.BeginInvoke("Echo", _args, callback, asyncState);
+        }
+
+        public string EndEcho(IAsyncResult result)
+        {
+            object[] _args = new object[0];
+            return (String)base.EndInvoke("Echo", _args, result);
+        }
+
+        public IAsyncResult BeginMessageRequestReply(Message request, AsyncCallback callback, object asyncState)
+        {
+            throw new NotImplementedException();
+        }
+
+        public string Echo(string message)
+        {
+            // Note: the public contract does not include base.Invoke(), so we are required
+            // to use the Begin/End pattern over a sync method when using ChannelBase<T>
+            object[] args = new object[] { message };
+            IAsyncResult ar =  base.BeginInvoke(nameof(Echo), args, callback: null, state: null);
+            return (String)base.EndInvoke(nameof(Echo), new object[1], ar);
+        }
+
+        public Message EndMessageRequestReply(IAsyncResult result)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Message MessageRequestReply(Message request)
+        {
+            throw new NotImplementedException();
+        }
+    }
 }
 
 // This helper class is used for DuplexClientBase<T> tests
@@ -915,7 +911,7 @@ public class WcfDuplexServiceCallback : IWcfDuplexServiceCallback, IWcfDuplexSer
 
 public class FlowControlledStream : Stream
 {
-    ManualResetEvent waitEvent = new ManualResetEvent(false);
+    private ManualResetEvent _waitEvent = new ManualResetEvent(false);
     // Used to control when Read will return 0.
     public bool StopStreaming { get; set; }
     //bool readCalledWithStopStreaming = false;
@@ -928,8 +924,8 @@ public class FlowControlledStream : Stream
     // sending a continuous stream will easily blow the MaxReceivedMessageSize buffer.
     public TimeSpan StreamDuration { get; set; }
 
-    DateTime readStartedTime;
-    long totalBytesRead = 0;
+    private DateTime _readStartedTime;
+    private long _totalBytesRead = 0;
 
     public override bool CanRead
     {
@@ -959,11 +955,11 @@ public class FlowControlledStream : Stream
     {
         get
         {
-            return totalBytesRead;
+            return _totalBytesRead;
         }
         set
         {
-            totalBytesRead = value;
+            _totalBytesRead = value;
         }
     }
 
@@ -972,11 +968,11 @@ public class FlowControlledStream : Stream
         // Duration-based streaming logic: Control the "StopStreaming" flag based on a Duration
         if (StreamDuration != TimeSpan.Zero)
         {
-            if (readStartedTime == DateTime.MinValue)
+            if (_readStartedTime == DateTime.MinValue)
             {
-                readStartedTime = DateTime.Now;
+                _readStartedTime = DateTime.Now;
             }
-            if (DateTime.Now - readStartedTime >= StreamDuration)
+            if (DateTime.Now - _readStartedTime >= StreamDuration)
             {
                 StopStreaming = true;
             }
@@ -995,12 +991,12 @@ public class FlowControlledStream : Stream
         byte[] randomBuffer = new byte[count];
         rand.NextBytes(randomBuffer);
         randomBuffer.CopyTo(buffer, offset);
-        totalBytesRead += count;
+        _totalBytesRead += count;
 
         if (ReadThrottle != TimeSpan.Zero)
         {
             // Thread.Sleep and Thread.CurrentThread.Join are not available in NET Native
-            waitEvent.WaitOne(ReadThrottle);
+            _waitEvent.WaitOne(ReadThrottle);
         }
         return count;
     }
@@ -1023,8 +1019,8 @@ public class FlowControlledStream : Stream
 
 public class ClientReceiver : IPushCallback, IDisposable
 {
-    bool disposed = false;
-    
+    private bool _disposed = false;
+
     public ManualResetEvent LogReceived { get; set; }
     public ManualResetEvent ReceiveDataInvoked { get; set; }
     public ManualResetEvent ReceiveDataCompleted { get; set; }
@@ -1091,10 +1087,10 @@ public class ClientReceiver : IPushCallback, IDisposable
 
     protected virtual void Dispose(bool disposing)
     {
-        if (disposed)
+        if (_disposed)
             return;
 
-        if(disposing)
+        if (disposing)
         {
             LogReceived.Dispose();
             ReceiveDataInvoked.Dispose();
@@ -1103,13 +1099,13 @@ public class ClientReceiver : IPushCallback, IDisposable
             ReceiveStreamCompleted.Dispose();
         }
 
-        disposed = true;
+        _disposed = true;
     }
 }
 
 public class MyX509CertificateValidator : X509CertificateValidator
 {
-    string allowedIssuerName;
+    private string _allowedIssuerName;
     public bool validateMethodWasCalled = false;
 
     public MyX509CertificateValidator(string allowedIssuerName)
@@ -1119,7 +1115,7 @@ public class MyX509CertificateValidator : X509CertificateValidator
             throw new ArgumentNullException("allowedIssuerName", "[MyX509CertificateValidator] The string parameter allowedIssuerName was null or empty.");
         }
 
-        this.allowedIssuerName = allowedIssuerName;
+        _allowedIssuerName = allowedIssuerName;
     }
 
     public override void Validate(X509Certificate2 certificate)
@@ -1133,10 +1129,10 @@ public class MyX509CertificateValidator : X509CertificateValidator
         }
 
         // Check that the certificate issuer matches the configured issuer.
-        if (!certificate.IssuerName.Name.Contains(allowedIssuerName))
+        if (!certificate.IssuerName.Name.Contains(_allowedIssuerName))
         {
             throw new Exception
-                (string.Format("Certificate was not issued by a trusted issuer. Expected: {0}, Actual: {1}", allowedIssuerName, certificate.IssuerName.Name));
+                (string.Format("Certificate was not issued by a trusted issuer. Expected: {0}, Actual: {1}", _allowedIssuerName, certificate.IssuerName.Name));
         }
     }
 }
@@ -1144,7 +1140,6 @@ public class MyX509CertificateValidator : X509CertificateValidator
 [MessageContract(WrapperName = "login", WrapperNamespace = "http://www.contoso.com/", IsWrapped = true)]
 public partial class LoginRequest
 {
-
     [MessageBodyMember(Namespace = "http://www.contoso.com/", Order = 0)]
     [System.Xml.Serialization.XmlElement(Form = System.Xml.Schema.XmlSchemaForm.Unqualified)]
     public string clientId;
@@ -1172,7 +1167,6 @@ public partial class LoginRequest
 [MessageContract(WrapperName = "loginResponse", WrapperNamespace = "http://www.contoso.com/", IsWrapped = true)]
 public partial class LoginResponse
 {
-
     [MessageBodyMember(Namespace = "http://www.contoso.com/", Order = 0)]
     [System.Xml.Serialization.XmlElement(Form = System.Xml.Schema.XmlSchemaForm.Unqualified)]
     public string @return;
@@ -1219,6 +1213,41 @@ public class XmlVeryComplexType
     }
 }
 
+public class SoapComplexType
+{
+    private bool _boolValue;
+    private string _stringValue;
+
+    public bool BoolValue
+    {
+        get { return _boolValue; }
+        set { _boolValue = value; }
+    }
+
+    public string StringValue
+    {
+        get { return _stringValue; }
+        set { _stringValue = value; }
+    }
+}
+
+[SoapType(Namespace = "WcfService")]
+public class CustomerObject
+{
+    public string Name { get; set; }
+    public object Data { get; set; }
+}
+
+[Serializable]
+[SoapType(Namespace = "WcfService")]
+public partial class AdditionalData
+{
+    public string Field
+    {
+        get; set;
+    }
+}
+
 // This type should be used by XmlSerializerFormat_EchoVeryComplexType only.
 // The type should not ever be instantiated. 
 public class NonInstantiatedType
@@ -1229,4 +1258,189 @@ public class NonInstantiatedType
 public class UniqueType
 {
     public string stringValue;
+}
+
+// This type should be exclusively used by test OperationContextScope_HttpRequestCustomMessageHeader_RoundTrip_Verify.
+[XmlType(Namespace = "urn:TestWebServices/MyWebService/")]
+public class MesssageHeaderCreateHeaderWithXmlSerializerTestType
+{
+    private string _message;
+
+    [XmlElement(Order = 0)]
+    public string Message
+    {
+        get
+        {
+            return _message;
+        }
+        set
+        {
+            _message = value;
+        }
+    }
+}
+
+// This type should only be used by test XmlSerializerFormatTests.
+// This test is designed to make sure the NET Native toolchain creates the needed serializer
+[MessageContract(WrapperName = "XmlMessageContractTestRequest", WrapperNamespace = "http://www.contoso.com/XmlMessageContarctTestMessages", IsWrapped = true)]
+public partial class XmlMessageContractTestRequest
+{
+    [MessageBodyMember(Namespace = "http://www.contoso.com/XmlMessageContarctTestMessages", Order = 0)]
+    public string Message;
+
+    public XmlMessageContractTestRequest()
+    {
+    }
+
+    public XmlMessageContractTestRequest(string message)
+    {
+        this.Message = message;
+    }
+}
+
+// This type should only be used by test XmlSerializerFormatTests.
+// This test is designed to make sure the NET Native toolchain creates the needed serializer
+[MessageContract(WrapperName = "XmlMessageContractTestRequestWithMessageHeader", WrapperNamespace = "http://www.contoso.com/XmlMessageContarctTestMessages", IsWrapped = true)]
+public partial class XmlMessageContractTestRequestWithMessageHeader
+{
+    [MessageHeader(Name = "XmlMessageContractTestRequestWithMessageHeaderMessage", Namespace = "http://www.contoso.com", MustUnderstand = false)]
+    public string Message;
+
+    public XmlMessageContractTestRequestWithMessageHeader()
+    {
+    }
+
+    public XmlMessageContractTestRequestWithMessageHeader(string message)
+    {
+        this.Message = message;
+    }
+}
+
+// This type should only be used by test XmlSerializerFormatTests.
+// This test is designed to make sure the NET Native toolchain creates the needed serializer
+[MessageContract(WrapperName = "XmlMessageContractTestResponse", WrapperNamespace = "http://www.contoso.com/XmlMessageContarctTestMessages", IsWrapped = true)]
+public partial class XmlMessageContractTestResponse
+{
+    [MessageBodyMember(Namespace = "http://www.contoso.com/XmlMessageContarctTestMessages", Order = 0)]
+    public string _message;
+
+    public XmlMessageContractTestResponse()
+    {
+    }
+
+    public XmlMessageContractTestResponse(string message)
+    {
+        this._message = message;
+    }
+
+    [MessageHeader(Name = "OutOfBandData", Namespace = "http://www.contoso.com", MustUnderstand = false)]
+    public string Message
+    {
+        get
+        {
+            return _message;
+        }
+        set
+        {
+            _message = value;
+        }
+    }
+}
+
+[DataContract(Name = "KnownTypeA", Namespace = "http://www.contoso.com/wcfnamespace")]
+public class KnownTypeA
+{
+    private string _content;
+
+    public KnownTypeA()
+    {
+    }
+
+    public KnownTypeA(string content)
+    {
+        _content = content;
+    }
+
+    [DataMember]
+    public string Content
+    {
+        get { return _content; }
+        set { _content = value; }
+    }
+}
+
+[DataContract]
+public class Employee
+{
+    [DataMember]
+    public string Name { get; set; }
+    [DataMember]
+    public string Age { get; set; }
+}
+
+[DataContract]
+public class Manager : Employee
+{
+    [DataMember]
+    public int OfficeId { get; set; }
+}
+
+
+[DataContract]
+public class SessionTestsCompositeType
+{
+    [DataMember]
+    public int MethodAValue { get; set; }
+    [DataMember]
+    public int MethodBValue { get; set; }
+}
+
+[DataContract(Name = "FaultDetailWithXmlSerializerFormatAttribute", Namespace = "http://www.contoso.com/wcfnamespace")]
+public class FaultDetailWithXmlSerializerFormatAttribute
+{
+    private bool _usedXmlSerializer;
+    private bool _usedDataContractSerializer;
+
+    public FaultDetailWithXmlSerializerFormatAttribute()
+    {
+    }
+
+    // If the Fault from the server was sent using the Xml Serializer this property will be set to 'true'
+    [DataMember]
+    [XmlElement]
+    public bool UsedXmlSerializer
+    {
+        get { return _usedXmlSerializer; }
+        set { _usedXmlSerializer = value; }
+    }
+
+    // If the Fault from the server was sent using the Data Contract Serializer this property will be set to 'true'
+    [DataMember]
+    [XmlElement]
+    public bool UsedDataContractSerializer
+    {
+        get { return _usedDataContractSerializer; }
+        set { _usedDataContractSerializer = value; }
+    }
+}
+
+[MessageContract(WrapperName = "PingResponse", IsWrapped = true)]
+public class PingEncodedResponse
+{
+    [MessageBodyMember(Namespace = "", Order = 0)]
+    public int @Return;
+}
+
+[MessageContract(WrapperName = "Ping", IsWrapped = true)]
+public class PingEncodedRequest
+{
+    [MessageBodyMember(Namespace = "", Order = 0)]
+    public string Pinginfo;
+
+    public PingEncodedRequest() { }
+
+    public PingEncodedRequest(string pinginfo)
+    {
+        this.Pinginfo = pinginfo;
+    }
 }

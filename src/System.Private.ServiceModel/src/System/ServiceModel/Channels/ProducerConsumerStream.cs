@@ -1,5 +1,7 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Diagnostics.Contracts;
 using System.IO;
@@ -30,7 +32,9 @@ namespace System.ServiceModel.Channels
 
         public override void Flush()
         {
-            _dataAvail.TrySetResult(0);
+            int bytesWrittenToBuffer = _currentBuffer.BytesWritten;
+            _currentBuffer = WriteBufferWrapper.EmptyContainer;
+            _dataAvail.TrySetResult(bytesWrittenToBuffer);
         }
 
         public override int Read(byte[] buffer, int offset, int count)
@@ -64,6 +68,11 @@ namespace System.ServiceModel.Channels
 
             cancellationToken.ThrowIfCancellationRequested();
 
+            // _dataAvail must be set before the disposed check to avoid a race condition
+            // when Dispose is called just after the _disposed check which would result in
+            // ReadAsync never completing.
+            _dataAvail = new TaskCompletionSource<int>();
+
             if (_disposed)
             {
                 return 0;
@@ -71,25 +80,12 @@ namespace System.ServiceModel.Channels
 
             using (cancellationToken.Register(CancelAndDispose, this))
             {
+                Contract.Assert(!_buffer.Task.IsCompleted, "Buffer task should not already be completed");
+                Contract.Assert(_currentBuffer == WriteBufferWrapper.EmptyContainer, "The current buffer should be the EmptyContainer");
                 _buffer.TrySetResult(new WriteBufferWrapper(buffer, offset, count));
-                int totalBytesRead = 0;
-                while (count > 0)
-                {
-                    int bytesRead = await _dataAvail.Task;
-                    _dataAvail = new TaskCompletionSource<int>();
-                    if (bytesRead == 0)
-                    {
-                        break;
-                    }
-
-                    totalBytesRead += bytesRead;
-                    count -= bytesRead;
-                }
-
-                return totalBytesRead;
+                return await _dataAvail.Task;
             }
         }
-
         public override void Write(byte[] buffer, int offset, int count)
         {
             try
@@ -141,10 +137,8 @@ namespace System.ServiceModel.Channels
                     offset += bytesWritten;
                     if (_currentBuffer.Count == 0)
                     {
-                        _currentBuffer = WriteBufferWrapper.EmptyContainer;
+                        Flush();
                     }
-
-                    _dataAvail.TrySetResult(bytesWritten);
                 }
             }
         }
@@ -175,7 +169,7 @@ namespace System.ServiceModel.Channels
             if (disposing && !_disposed)
             {
                 _disposed = true;
-                _dataAvail.TrySetResult(0);
+                Flush();
             }
 
             base.Dispose(disposing);
@@ -202,6 +196,7 @@ namespace System.ServiceModel.Channels
             private int _offset;
             private int _count;
             private readonly bool _readOnly;
+            private int _bytesWritten;
 
             public WriteBufferWrapper(byte[] buffer, int offset, int count) : this(buffer, offset, count, false) { }
             private WriteBufferWrapper(byte[] buffer, int offset, int count, bool isReadOnly) : this()
@@ -225,6 +220,11 @@ namespace System.ServiceModel.Channels
             public int Count
             {
                 get { return _count; }
+            }
+
+            public int BytesWritten
+            {
+                get { return _bytesWritten; }
             }
 
             public override bool Equals(object obj)
@@ -273,6 +273,7 @@ namespace System.ServiceModel.Channels
                 Buffer.BlockCopy(srcBuffer, srcOffset, _buffer, _offset, bytesToCopy);
                 _offset += bytesToCopy;
                 _count -= bytesToCopy;
+                _bytesWritten += bytesToCopy;
                 return bytesToCopy;
             }
         }

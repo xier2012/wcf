@@ -1,5 +1,7 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Diagnostics.Contracts;
 using System.IO;
@@ -7,6 +9,7 @@ using System.Net;
 using System.Net.Http;
 using System.Runtime;
 using System.ServiceModel.Security;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 
@@ -32,7 +35,7 @@ namespace System.ServiceModel.Channels
             _encoder = factory.MessageEncoderFactory.Encoder;
         }
 
-        internal async Task<Message> ParseIncomingResponse()
+        internal async Task<Message> ParseIncomingResponse(TimeoutHelper timeoutHelper)
         {
             ValidateAuthentication();
             ValidateResponseStatusCode();
@@ -52,7 +55,7 @@ namespace System.ServiceModel.Channels
             }
             else
             {
-                message = await ReadStreamAsMessageAsync();
+                message = await ReadStreamAsMessageAsync(timeoutHelper);
             }
 
             var exception = ProcessHttpAddressing(message);
@@ -162,7 +165,7 @@ namespace System.ServiceModel.Channels
             return true;
         }
 
-        private Task<Message> ReadStreamAsMessageAsync()
+        private Task<Message> ReadStreamAsMessageAsync(TimeoutHelper timeoutHelper)
         {
             var content = _httpResponseMessage.Content;
             Task<Stream> contentStreamTask = GetStreamAsync();
@@ -173,16 +176,16 @@ namespace System.ServiceModel.Channels
             }
             if (!content.Headers.ContentLength.HasValue)
             {
-                return ReadChunkedBufferedMessageAsync(contentStreamTask);
+                return ReadChunkedBufferedMessageAsync(contentStreamTask, timeoutHelper);
             }
             return ReadBufferedMessageAsync(contentStreamTask);
         }
 
-        private async Task<Message> ReadChunkedBufferedMessageAsync(Task<Stream> inputStreamTask)
+        private async Task<Message> ReadChunkedBufferedMessageAsync(Task<Stream> inputStreamTask, TimeoutHelper timeoutHelper)
         {
             try
             {
-                return await _encoder.ReadMessageAsync(await inputStreamTask, _factory.BufferManager, _factory.MaxBufferSize, _contentType);
+                return await _encoder.ReadMessageAsync(await inputStreamTask, _factory.BufferManager, _factory.MaxBufferSize, _contentType, await timeoutHelper.GetCancellationTokenAsync());
             }
             catch (XmlException xmlException)
             {
@@ -229,11 +232,19 @@ namespace System.ServiceModel.Channels
 
         private async Task<Message> ReadStreamedMessageAsync(Task<Stream> inputStreamTask)
         {
-            MaxMessageSizeStream maxMessageSizeStream = new MaxMessageSizeStream(await inputStreamTask, _factory.MaxReceivedMessageSize);
+            var inputStream = await inputStreamTask;
+            var bufferedInputStream = inputStream as BufferedReadStream;
+            MaxMessageSizeStream maxMessageSizeStream = new MaxMessageSizeStream(inputStream, _factory.MaxReceivedMessageSize);
 
             try
             {
-                return await _encoder.ReadMessageAsync(maxMessageSizeStream, _factory.MaxBufferSize, _contentType);
+                var message = await _encoder.ReadMessageAsync(maxMessageSizeStream, _factory.MaxBufferSize, _contentType);
+                if (bufferedInputStream != null)
+                {
+                    message.Properties[BufferedReadStream.BufferedReadStreamPropertyName] = bufferedInputStream;
+                }
+
+                return message;
             }
             catch (XmlException xmlException)
             {
@@ -305,8 +316,18 @@ namespace System.ServiceModel.Channels
                     }
                     else
                     {
-                        contentStream = new PreReadStream(contentStream, preReadBuffer);
+                        var bufferedStream = new BufferedReadStream(contentStream, _factory.BufferManager);
+                        await bufferedStream.PreReadBufferAsync(preReadBuffer[0], CancellationToken.None);
+                        contentStream = bufferedStream;
                     }
+                }
+                else if(TransferModeHelper.IsResponseStreamed(_factory.TransferMode))
+                {
+                    // If _contentLength > 0, then the message was sent buffered but we might still
+                    // be receiving it streamed. In which case we need a buffered reading stream.
+                    var bufferedStream = new BufferedReadStream(contentStream, _factory.BufferManager);
+                    await bufferedStream.PreReadBufferAsync(CancellationToken.None);
+                    contentStream = bufferedStream;
                 }
             }
 

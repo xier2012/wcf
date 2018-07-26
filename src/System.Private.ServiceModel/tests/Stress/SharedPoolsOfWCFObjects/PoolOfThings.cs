@@ -9,8 +9,9 @@ using System.Threading.Tasks;
 
 namespace SharedPoolsOfWCFObjects
 {
-    // Pooling of WCF channel factories and channels is a commonly reccomended practice due to its perf benefits.
-    // However with pooling come more race condition-like scenarios such as using an already faulted channel or factory.
+    // Pooling of WCF channel factories and channels is a commonly recommended practice due to its performance benefits.
+    // However with pooling come more thread safety related scenarios such as using the same factory on multiple threads
+    // or using a channel or a factory while it changes its state.
     // 
     // The number of such scenarios is rather significant:
     // - create and use a pool of channels using a pool of channel factories
@@ -24,24 +25,32 @@ namespace SharedPoolsOfWCFObjects
 
     public class PoolOfThings<T> : IDisposable where T : class
     {
+        private const int MaxCreateInstanceRetries = 5;
+
         private T[] _thePool;
         private int _maxSize;
 
         private Func<T> _createInstance;
         private Action<T> _destroyInstance;
+        private Func<T, bool> _instanceValidator;
+
+        private int _numPoolSetRetries = 0;
+        private int _numInvalidatedInstances = 0;
 
         /// <summary>
         /// ctor taking sync versions of delegates
         /// </summary>
         /// <param name="maxSize"> number of pooled instances </param>
         /// <param name="createInstance"> delegate to create a new instance; can return null in which case the pool will store null until DestoryAllPooledInstances is called </param>
-        /// <param name="destroyInstance"></param>
-        public PoolOfThings(int maxSize, Func<T> createInstance, Action<T> destroyInstance)
+        /// <param name="destroyInstance"> delegate to destroy an instance</param>
+        /// <param name="instanceValidator"> delegate to evaluate an instance of T and indicate if it is good to use or needs to be replaced with a new one</param>
+        public PoolOfThings(int maxSize, Func<T> createInstance, Action<T> destroyInstance, Func<T, bool> instanceValidator)
         {
             _thePool = new T[maxSize];
             _maxSize = maxSize;
             _createInstance = createInstance;
             _destroyInstance = destroyInstance;
+            _instanceValidator = instanceValidator;
         }
 
         public void Dispose()
@@ -57,7 +66,8 @@ namespace SharedPoolsOfWCFObjects
 
             // Replace the pool
             var oldPool = _thePool;
-            if (Interlocked.CompareExchange(ref _thePool, newPool, oldPool) != oldPool)
+
+            if (System.Threading.Interlocked.CompareExchange(ref _thePool, newPool, oldPool) != oldPool)
             {
                 // somebody beat us - they will be responsible for closing the old _channelsPool they replaced
             }
@@ -68,6 +78,13 @@ namespace SharedPoolsOfWCFObjects
             }
         }
 
+        public T this[int i]
+        {
+            get
+            {
+                return GetPooledInstance(i);
+            }
+        }
         public IEnumerable<T> GetAllPooledInstances()
         {
             return new AllPooledInstancesCollection(this);
@@ -105,30 +122,39 @@ namespace SharedPoolsOfWCFObjects
         private T GetPooledInstance(int i)
         {
             var instance = _thePool[i];
-            while (instance == null)
+            int iteration = 1;
+            while (instance == null || !_instanceValidator(instance))
             {
-                //try
+                if (instance != null)
                 {
-                    instance = _createInstance();
-                    if (instance == null)
+                    Interlocked.Increment(ref _numInvalidatedInstances);
+                    // the pooled instance is not null but it failed the _pooledItemsValidator check so we'll replace it
+                    _destroyInstance(instance);
+
+                    // if we don't cap the number of retries we may end up in an infinite loop of getting a new item
+                    // from _createInstance() and _pooledItemsValidator not liking it over and over
+                    if (iteration++ > MaxCreateInstanceRetries)
                     {
+                        instance = null;
+                        // Its ok to not reset _thePool[i] so next time we'll start with it and try again
                         break;
                     }
-                    if (Interlocked.CompareExchange<T>(ref _thePool[i], instance, null) != null)
-                    {
-                        _destroyInstance(instance);
-                        instance = _thePool[i];
-                        // Somebody stored the new instance before us - dispose ours and re-read theirs
-                        // Since the whole pool can also be replaced we can still get a null from _thePool[index]
-                        // so we retry while (instance == null)
-                        // Note that _destroyInstance(instance) should not throw since nobody uses it yet
-
-                        //Interlocked.Increment(ref _numPoolSetRetries);
-                    }
                 }
-                //catch (Exception)
+                instance = _createInstance();
+                if (instance == null)
                 {
-                    //    break;
+                    break;
+                }
+                if (Interlocked.CompareExchange<T>(ref _thePool[i], instance, null) != null)
+                {
+                    _destroyInstance(instance);
+                    instance = _thePool[i];
+                    // Somebody stored the new instance before us - dispose ours and re-read theirs
+                    // Since the whole pool can also be replaced we can still get a null from _thePool[index]
+                    // so we retry while (instance == null)
+                    // Note that _destroyInstance(instance) should not throw since nobody uses it yet
+
+                    Interlocked.Increment(ref _numPoolSetRetries);
                 }
             }
             return instance;
@@ -142,12 +168,10 @@ namespace SharedPoolsOfWCFObjects
                 {
                     try
                     {
-                        //Interlocked.Increment(ref _stats.FactoriesClosed);
                         destroyInstance(instance);
                     }
-                    catch (Exception e)
+                    catch (Exception)
                     {
-                        //Interlocked.Increment(ref _stats.ExceptionsClosingFactories);
                     }
                 }
             }
@@ -156,24 +180,32 @@ namespace SharedPoolsOfWCFObjects
     }
     public class PoolOfAsyncThings<T> : IDisposable where T : class
     {
+        private const int MaxCreateInstanceRetries = 5;
+
         private T[] _thePool;
         private int _maxSize;
 
         private Func<T> _createInstance;
         private Func<T, Task> _destroyInstanceAsync;
+        private Func<T, bool> _instanceValidator;
+
+        private int _numInvalidatedInstances = 0;
+        private int _numPoolSetRetries = 0;
 
         /// <summary>
         /// ctor taking sync versions of delegates
         /// </summary>
         /// <param name="maxSize"> number of pooled instances </param>
         /// <param name="createInstance"> delegate to create a new instance; can return null in which case the pool will store null until DestoryAllPooledInstancesAsync is called </param>
-        /// <param name="destroyInstance"></param>
-        public PoolOfAsyncThings(int maxSize, Func<T> createInstance, Func<T, Task> destroyInstanceAsync)
+        /// <param name="destroyInstanceAsync"> delegate to destroy an instance</param>
+        /// <param name="instanceValidator"> delegate to evaluate an instance of T and indicate if it is good to use or needs to be replaced with a new one</param>
+        public PoolOfAsyncThings(int maxSize, Func<T> createInstance, Func<T, Task> destroyInstanceAsync, Func<T, bool> instanceValidator)
         {
             _thePool = new T[maxSize];
             _maxSize = maxSize;
             _createInstance = createInstance;
             _destroyInstanceAsync = destroyInstanceAsync;
+            _instanceValidator = instanceValidator;
         }
 
         public void Dispose()
@@ -205,6 +237,13 @@ namespace SharedPoolsOfWCFObjects
             return new AllPooledInstancesCollection(this);
         }
 
+        public T this[int i]
+        {
+            get
+            {
+                return GetPooledInstance(i);
+            }
+        }
         #region helpers
 
         private class AllPooledInstancesCollection : IEnumerable<T>
@@ -237,8 +276,25 @@ namespace SharedPoolsOfWCFObjects
         private T GetPooledInstance(int i)
         {
             var instance = _thePool[i];
-            while (instance == null)
+            int iteration = 1;
+            while (instance == null || !_instanceValidator(instance))
             {
+                if (instance != null)
+                {
+                    Interlocked.Increment(ref _numInvalidatedInstances);
+                    // the pooled instance is not null but it failed the _pooledItemsValidator check so we'll replace it
+                    // don't await as we should not depend on the old instance in any way
+                    _destroyInstanceAsync(instance);
+
+                    // if we don't cap the number of retries we may end up in an infinite loop of getting a new item
+                    // from _createInstance() and _pooledItemsValidator not liking it over and over
+                    if (iteration++ > MaxCreateInstanceRetries)
+                    {
+                        instance = null;
+                        // Its ok to not reset _thePool[i] so next time we'll start with it and try again
+                        break;
+                    }
+                }
                 instance = _createInstance();
                 if (instance == null)
                 {
@@ -254,8 +310,15 @@ namespace SharedPoolsOfWCFObjects
                     // so we retry while (instance == null)
                     // Note that _destroyInstance(instance) should not throw since nobody uses it yet
 
-                    //Interlocked.Increment(ref _numPoolSetRetries);
+                    // This is simply for debugging purposes to know the number of times we had to destroy the instance
+                    Interlocked.Increment(ref _numPoolSetRetries);
                 }
+            }
+            if (instance != null && !_instanceValidator(instance))
+            {
+                // This is really not a failure because the same instance may be obtained by multiple threads
+                // so the validation will fail if one of these threads closes it before others had a chance to validate
+                TestUtils.ReportFailure("returning bad instance", debugBreak: false);
             }
             return instance;
         }
@@ -268,12 +331,10 @@ namespace SharedPoolsOfWCFObjects
                 {
                     try
                     {
-                        //Interlocked.Increment(ref _stats.FactoriesClosed);
                         await destroyInstanceAsync(instance);
                     }
-                    catch (Exception e)
+                    catch (Exception)
                     {
-                        //Interlocked.Increment(ref _stats.ExceptionsClosingFactories);
                     }
                 }
             }
@@ -304,7 +365,13 @@ namespace SharedPoolsOfWCFObjects
         /// <param name="maxPooledObjects"> Max size of the pool of objects O </param>
         /// <param name="createObject"> A func to create all instances of O </param>
         /// <param name="destroyObject"> An action to destroy all instances of O</param>
-        public FactoryAndPoolOfItsObjects(Func<F> createFactoryInstance, Action<F> destroyFactoryInstance, int maxPooledObjects, Func<F, O> createObject, Action<O> destroyObject)
+        public FactoryAndPoolOfItsObjects(
+            Func<F> createFactoryInstance,
+            Action<F> destroyFactoryInstance,
+            int maxPooledObjects,
+            Func<F, O> createObject,
+            Action<O> destroyObject,
+            Func<O, bool> validateObjectInstance)
         {
             _destroyFactoryInstance = destroyFactoryInstance;
             Factory = createFactoryInstance();
@@ -317,15 +384,16 @@ namespace SharedPoolsOfWCFObjects
                     var f = Factory;
                     return f != null ? createObject(f) : null;
                 },
-                destroyInstance: destroyObject);
+                destroyInstance: destroyObject,
+                instanceValidator: validateObjectInstance);
         }
 
         public void Destroy()
         {
-            // should never be recycled more than once
             if (Factory == null)
             {
-                System.Diagnostics.Debugger.Break();
+                // This would likely indicate an issue in the test framework
+                TestUtils.ReportFailure("An instance of the factory should never be recycled more than once.");
             }
             _destroyFactoryInstance(Factory);
             Factory = null;
@@ -344,7 +412,8 @@ namespace SharedPoolsOfWCFObjects
             Func<F, Task> destroyFactoryInstanceAsync,
             int maxPooledObjects,
             Func<F, O> createObject,
-            Func<O, Task> destroyObjectAsync)
+            Func<O, Task> destroyObjectAsync,
+            Func<O, bool> validateObjectInstance)
         {
             _destroyFactoryInstanceAsync = destroyFactoryInstanceAsync;
             Factory = createFactoryInstance();
@@ -357,15 +426,15 @@ namespace SharedPoolsOfWCFObjects
                     var f = Factory;
                     return f != null ? createObject(f) : null;
                 },
-                destroyInstanceAsync: async (o) => await destroyObjectAsync(o));
+                destroyInstanceAsync: async (o) => await destroyObjectAsync(o),
+                instanceValidator: validateObjectInstance);
         }
 
         public async Task DestroyAsync()
         {
-            // should never be recycled more than once
             if (Factory == null)
             {
-                System.Diagnostics.Debugger.Break();
+                TestUtils.ReportFailure("A factory instance should never be recycled more than once");
             }
             await _destroyFactoryInstanceAsync(Factory);
             Factory = null;

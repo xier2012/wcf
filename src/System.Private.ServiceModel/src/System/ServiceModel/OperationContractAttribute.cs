@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Net.Security;
 using System.Reflection;
@@ -16,6 +18,7 @@ namespace System.ServiceModel
         private string _replyAction = null;
         private bool _asyncPattern = false;
         private bool _isInitiating = true;
+        private bool _isTerminating = false;
         private bool _isOneWay = false;
         private ProtectionLevel _protectionLevel = ProtectionLevel.None;
         private bool _hasProtectionLevel = false;
@@ -106,6 +109,12 @@ namespace System.ServiceModel
         {
             get { return _isInitiating; }
             set { _isInitiating = value; }
+        }
+
+        public bool IsTerminating
+        {
+            get { return _isTerminating; }
+            set { _isTerminating = value; }
         }
 
         internal bool IsSessionOpenNotificationEnabled

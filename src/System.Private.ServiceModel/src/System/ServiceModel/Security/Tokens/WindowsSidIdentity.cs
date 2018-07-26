@@ -1,16 +1,17 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Security.Principal;
 
 namespace System.ServiceModel.Security.Tokens
 {
-#if SUPPORTS_WINDOWSIDENTITY // NegotiateStream
     internal class WindowsSidIdentity : IIdentity
     {
-        SecurityIdentifier _sid;
-        string _name;
-        string _authenticationType;
+        private SecurityIdentifier _sid;
+        private string _name;
+        private string _authenticationType;
 
         public WindowsSidIdentity(SecurityIdentifier sid)
         {
@@ -40,17 +41,17 @@ namespace System.ServiceModel.Security.Tokens
             get { return _sid; }
         }
 
-        public string AuthenticationType 
+        public string AuthenticationType
         {
             get { return _authenticationType; }
         }
-        
+
         public bool IsAuthenticated
-        { 
-            get { return true; } 
+        {
+            get { return true; }
         }
 
-        public string Name 
+        public string Name
         {
             get
             {
@@ -77,5 +78,4 @@ namespace System.ServiceModel.Security.Tokens
             return _sid.GetHashCode();
         }
     }
-#endif // SUPPORTS_WINDOWSIDENTITY
 }

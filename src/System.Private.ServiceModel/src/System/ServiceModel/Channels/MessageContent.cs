@@ -1,5 +1,7 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Diagnostics.Contracts;
 using System.Globalization;
@@ -10,6 +12,7 @@ using System.Net.Http.Headers;
 using System.Runtime;
 using System.Threading.Tasks;
 using System.Linq;
+using System.Threading;
 
 namespace System.ServiceModel.Channels
 {
@@ -17,25 +20,25 @@ namespace System.ServiceModel.Channels
     {
         protected Message _message;
         protected MessageEncoder _messageEncoder;
+        protected BufferManager _bufferManager;
         protected Stream _stream = null;
         private bool _disposed;
+        protected TaskCompletionSource<bool> _writeCompletedTcs;
 
-        public MessageContent(Message message, MessageEncoder messageEncoder)
+        public MessageContent(Message message, MessageEncoder messageEncoder, BufferManager bufferManager)
         {
             _message = message;
             _messageEncoder = messageEncoder;
+            _bufferManager = bufferManager;
+            _writeCompletedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             SetContentType(_messageEncoder.ContentType);
             PrepareContentHeaders();
         }
 
-        public Message Message
-        {
-            get
-            {
-                return _message;
-            }
-        }
+        public Message Message { get { return _message; } }
+
+        internal  Task WriteCompletionTask { get { return _writeCompletedTcs.Task; } }
 
         private void PrepareContentHeaders()
         {
@@ -154,7 +157,7 @@ namespace System.ServiceModel.Channels
         {
             if (TransferModeHelper.IsRequestStreamed(factory.TransferMode))
             {
-                return new StreamedMessageContent(request, factory.MessageEncoderFactory.Encoder);
+                return new StreamedMessageContent(request, factory.MessageEncoderFactory.Encoder, factory.BufferManager);
             }
             else
             {
@@ -165,11 +168,7 @@ namespace System.ServiceModel.Channels
 
     internal class StreamedMessageContent : MessageContent
     {
-        // Using the BufferedWriteStream default buffer size which is 4K. HttpWebRequest uses a 4K buffer internally,
-        // so using the same size to have the same performance characteristics.
-        private const int WriteBufferSize = BufferedWriteStream.DefaultBufferSize; 
-
-        public StreamedMessageContent(Message message, MessageEncoder messageEncoder) : base(message, messageEncoder)
+        public StreamedMessageContent(Message message, MessageEncoder messageEncoder, BufferManager bufferManager) : base(message, messageEncoder, bufferManager)
         {
         }
 
@@ -178,15 +177,35 @@ namespace System.ServiceModel.Channels
             // WriteMessageAsync might run synchronously and try to write to the stream. ProducerConsumerStream
             // will block on the write until the stream is being read from. The WriteMessageAsync method needs
             // to run on a different thread to prevent a deadlock.
-            _stream = new ProducerConsumerStream();
-            var bufferedStream = new BufferedWriteStream(_stream, WriteBufferSize);
-            Task.Run(async () => await _messageEncoder.WriteMessageAsync(_message, bufferedStream));
-            return Task.FromResult(_stream);
+            var resultStream = new ProducerConsumerStream();
+            _stream = new BufferedWriteStream(resultStream, _bufferManager);
+            Task.Factory.StartNew(async (content) =>
+            {
+                var thisPtr = content as StreamedMessageContent;
+                try
+                {
+                    await _messageEncoder.WriteMessageAsync(thisPtr._message, thisPtr._stream);
+                }
+                finally
+                {
+                    thisPtr._stream.Dispose();
+                    thisPtr._writeCompletedTcs.TrySetResult(true);
+                }
+            }, this, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+
+            return Task.FromResult<Stream>(resultStream);
         }
 
-        protected override Task SerializeToStreamAsync(Stream stream, TransportContext context)
+        protected override async Task SerializeToStreamAsync(Stream stream, TransportContext context)
         {
-            return _messageEncoder.WriteMessageAsync(_message, new BufferedWriteStream(stream, WriteBufferSize));
+            try
+            {
+                await _messageEncoder.WriteMessageAsync(_message, new BufferedWriteStream(stream, _bufferManager));
+            }
+            finally
+            {
+                _writeCompletedTcs.TrySetResult(true);
+            }
         }
 
         protected override bool TryComputeLength(out long length)
@@ -200,14 +219,12 @@ namespace System.ServiceModel.Channels
     {
         private bool _disposed;
         private bool _messageEncoded;
-        private readonly BufferManager _bufferManager;
         private ArraySegment<byte> _buffer;
         private long? _contentLength;
 
-        public BufferedMessageContent(Message message, MessageEncoder messageEncoder, BufferManager bufferManager) : base(message, messageEncoder)
+        public BufferedMessageContent(Message message, MessageEncoder messageEncoder, BufferManager bufferManager) : base(message, messageEncoder, bufferManager)
         {
             Contract.Assert(bufferManager != null);
-            _bufferManager = bufferManager;
             _messageEncoded = false;
         }
 
@@ -215,6 +232,7 @@ namespace System.ServiceModel.Channels
         {
             EnsureMessageEncoded();
             _stream = new MemoryStream(_buffer.Array, _buffer.Offset, _buffer.Count, false, true);
+            _writeCompletedTcs.TrySetResult(true);
             return Task.FromResult(_stream);
         }
 
@@ -230,8 +248,15 @@ namespace System.ServiceModel.Channels
 
         protected override async Task SerializeToStreamAsync(Stream stream, TransportContext context)
         {
-            EnsureMessageEncoded();
-            await stream.WriteAsync(_buffer.Array, _buffer.Offset, _buffer.Count);
+            try
+            {
+                EnsureMessageEncoded();
+                await stream.WriteAsync(_buffer.Array, _buffer.Offset, _buffer.Count);
+            }
+            finally
+            {
+                _writeCompletedTcs.TrySetResult(true);
+            }
         }
 
         protected override bool TryComputeLength(out long length)

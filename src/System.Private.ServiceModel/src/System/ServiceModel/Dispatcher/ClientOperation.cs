@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Reflection;
 using System.Collections.Generic;
@@ -35,6 +37,7 @@ namespace System.ServiceModel.Dispatcher
         private IClientFaultFormatter _faultFormatter;
         private bool _isInitiating = true;
         private bool _isOneWay;
+        private bool _isTerminating;
         private bool _isSessionOpenNotificationEnabled;
         private string _name;
 
@@ -188,6 +191,19 @@ namespace System.ServiceModel.Dispatcher
                 {
                     _parent.InvalidateRuntime();
                     _isOneWay = value;
+                }
+            }
+        }
+
+        public bool IsTerminating
+        {
+            get { return _isTerminating; }
+            set
+            {
+                lock (_parent.ThisLock)
+                {
+                    _parent.InvalidateRuntime();
+                    _isTerminating = value;
                 }
             }
         }

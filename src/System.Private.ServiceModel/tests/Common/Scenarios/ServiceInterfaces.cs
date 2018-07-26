@@ -1,5 +1,7 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System;
 using System.Collections.Generic;
@@ -24,6 +26,9 @@ public interface IWcfService
     [OperationContract(Action = "http://tempuri.org/IWcfService/EchoWithTimeout")]
     String EchoWithTimeout(String message, TimeSpan serviceOperationTimeout);
 
+    [OperationContract(Action = "http://tempuri.org/IWcfService/EchoWithTimeout")]
+    Task<String> EchoWithTimeoutAsync(String message, TimeSpan serviceOperationTimeout);
+
     [OperationContract(Action = "http://tempuri.org/IWcfService/GetDataUsingDataContract")]
     CompositeType GetDataUsingDataContract(CompositeType composite);
 
@@ -34,6 +39,17 @@ public interface IWcfService
     [OperationContract]
     [FaultContract(typeof(int), Action = "http://tempuri.org/IWcfService/TestFaultIntFault", Name = "IntFault", Namespace = "http://www.contoso.com/wcfnamespace")]
     void TestFaultInt(int faultCode);
+
+    [OperationContract]
+    [FaultContract(typeof(FaultDetail), Action = "http://tempuri.org/IWcfService/TestFaultFaultDetailFault", Name = "FaultDetail", Namespace = "http://www.contoso.com/wcfnamespace")]
+    [FaultContract(typeof(FaultDetail2), Action = "http://tempuri.org/IWcfService/TestFaultFaultDetailFault2", Name = "FaultDetail2", Namespace = "http://www.contoso.com/wcfnamespace")]
+    void TestFaults(string faultMsg, bool throwFaultDetail);
+
+    [OperationContract]
+    [FaultContract(typeof(FaultDetail), Action = "http://tempuri.org/IWcfService/TestFaultFaultDetailFault", Name = "FaultDetail", Namespace = "http://www.contoso.com/wcfnamespace")]
+    [ServiceKnownType(typeof(KnownTypeA))]
+    [ServiceKnownType(typeof(FaultDetail))]
+    object[] TestFaultWithKnownType(string faultMsg, object[] objects);
 
     [OperationContract]
     void ThrowInvalidOperationException(string message);
@@ -64,9 +80,15 @@ public interface IWcfService
 
     [OperationContractAttribute(Action = "http://tempuri.org/IWcfService/EchoStream", ReplyAction = "http://tempuri.org/IWcfService/EchoStreamResponse")]
     Task<Stream> EchoStreamAsync(Stream stream);
-    
+
     [OperationContract]
     void ReturnContentType(string contentType);
+
+    [OperationContract]
+    bool IsHttpKeepAliveDisabled();
+
+    [OperationContract]
+    Dictionary<string, string> GetRequestHttpHeaders();
 }
 
 [ServiceContract]
@@ -104,6 +126,37 @@ public interface IWcfServiceXmlGenerated
     XmlVeryComplexType EchoXmlVeryComplexType(XmlVeryComplexType complex);
 }
 
+[ServiceContract(ConfigurationName = "IWcfSoapService")]
+public interface IWcfSoapService
+{
+    [OperationContract(Action = "http://tempuri.org/IWcfService/CombineStringXmlSerializerFormatSoap", ReplyAction = "http://tempuri.org/IWcfService/CombineStringXmlSerializerFormatSoapResponse")]
+    [XmlSerializerFormat(Style = OperationFormatStyle.Rpc, SupportFaults = true, Use = OperationFormatUse.Encoded)]
+    string CombineStringXmlSerializerFormatSoap(string message1, string message2);
+
+    [OperationContract(Action = "http://tempuri.org/IWcfService/EchoComositeTypeXmlSerializerFormatSoap", ReplyAction = "http://tempuri.org/IWcfService/EchoComositeTypeXmlSerializerFormatSoapResponse")]
+    [XmlSerializerFormat(Style = OperationFormatStyle.Rpc, SupportFaults = true, Use = OperationFormatUse.Encoded)]
+    SoapComplexType EchoComositeTypeXmlSerializerFormatSoap(SoapComplexType c);
+
+    [OperationContract(Action = "http://tempuri.org/IWcfService/ProcessCustomerData", ReplyAction = "http://tempuri.org/IWcfSoapService/ProcessCustomerDataResponse")]
+    [XmlSerializerFormat(Style = OperationFormatStyle.Rpc, SupportFaults = true, Use = OperationFormatUse.Encoded)]
+    [ServiceKnownType(typeof(AdditionalData))]
+    [return: MessageParameter(Name = "ProcessCustomerDataReturn")]
+    string ProcessCustomerData(CustomerObject CustomerData);
+
+    [OperationContract(Action = "http://tempuri.org/IWcfService/Ping", ReplyAction = "http://tempuri.org/IWcfSoapService/PingResponse")]
+    [XmlSerializerFormat(Style = OperationFormatStyle.Rpc, SupportFaults = true, Use = OperationFormatUse.Encoded)]
+    PingEncodedResponse Ping(PingEncodedRequest request);
+}
+
+// This type share the same name space with IWcfServiceXmlGenerated.
+// And this type contains a method which is also defined in IWcfServiceXmlGenerated.
+[ServiceContract(ConfigurationName = "IWcfService")]
+public interface ISameNamespaceWithIWcfServiceXmlGenerated
+{
+    [OperationContractAttribute(Action = "http://tempuri.org/IWcfService/EchoXmlSerializerFormat", ReplyAction = "http://tempuri.org/IWcfService/EchoXmlSerializerFormatResponse"),
+    XmlSerializerFormat]
+    string EchoXmlSerializerFormat(string message);
+}
 
 [System.ServiceModel.ServiceContractAttribute(ConfigurationName = "IWcfService")]
 public interface IWcfServiceGenerated
@@ -209,14 +262,8 @@ public interface IFeedbackService
 [ServiceContract]
 public interface IUser
 {
-    [OperationContract]
-    string GetData(int value);
-
     [OperationContract(Action = "http://tempuri.org/IWcfService/UserGetAuthToken")]
-    ResultObject<string> UserGetAuthToken(string liveId);
-
-    [OperationContract]
-    ResultObject<string> UserGetId();
+    ResultObject<string> UserGetAuthToken();
 
     [OperationContract(Action = "http://tempuri.org/IWcfService/ValidateMessagePropertyHeaders")]
     Dictionary<string, string> ValidateMessagePropertyHeaders();
@@ -227,6 +274,9 @@ public interface IWcfRestartService
 {
     [OperationContract]
     String RestartService(Guid uniqueIdentifier);
+
+    [OperationContract]
+    String NonRestartService(Guid uniqueIdentifier);
 }
 
 [ServiceContract]
@@ -457,8 +507,198 @@ public interface IServiceContractUniqueTypeRefSyncService
 [ServiceContract]
 public interface ILoginService
 {
-
     [OperationContract(Action = "http://www.contoso.com/MtcRequest/loginRequest", ReplyAction = "http://www.contoso.com/MtcRequest/loginResponse")]
     [XmlSerializerFormat]
     LoginResponse Login(LoginRequest request);
+}
+
+[ServiceContract(Namespace = "http://www.contoso.com/IXmlMessageContarctTestService")]
+public interface IXmlMessageContarctTestService
+{
+    [OperationContract(
+        Action = "http://www.contoso.com/IXmlMessageContarctTestService/EchoMessageResponseWithMessageHeader",
+        ReplyAction = "*")]
+    [XmlSerializerFormat(SupportFaults = true)]
+    XmlMessageContractTestResponse EchoMessageResponseWithMessageHeader(XmlMessageContractTestRequest request);
+
+    [OperationContract(
+        Action = "http://www.contoso.com/IXmlMessageContarctTestService/EchoMessageResquestWithMessageHeader",
+        ReplyAction = "*")]
+    [XmlSerializerFormat(SupportFaults = true)]
+    XmlMessageContractTestResponse EchoMessageResquestWithMessageHeader(XmlMessageContractTestRequestWithMessageHeader request);
+}
+
+[ServiceContract]
+public interface IWcfAspNetCompatibleService
+{
+    [OperationContract(Action = "http://tempuri.org/IWcfService/EchoCookie", ReplyAction = "http://tempuri.org/IWcfService/EchoCookieResponse")]
+    string EchoCookie();
+
+    [OperationContract(Action = "http://tempuri.org/IWcfService/EchoTimeAndSetCookie", ReplyAction = "http://tempuri.org/IIWcfService/EchoTimeAndSetCookieResponse")]
+    string EchoTimeAndSetCookie(string name);
+}
+
+[ServiceContract(ConfigurationName = "IWcfService")]
+public interface IWcfServiceXml_OperationContext
+{
+    [XmlSerializerFormat]
+    [ServiceKnownType(typeof(MesssageHeaderCreateHeaderWithXmlSerializerTestType))]
+    [OperationContract(Action = "http://tempuri.org/IWcfService/GetIncomingMessageHeadersMessage", ReplyAction = "*")]
+    string GetIncomingMessageHeadersMessage(string customHeaderName, string customHeaderNS);
+}
+
+[ServiceContract]
+public interface IWcfChannelExtensibilityContract
+{
+    [OperationContract(IsOneWay = true)]
+    void ReportWindSpeed(int speed);
+}
+
+[ServiceContract]
+public interface IVerifyWebSockets
+{
+    [OperationContract()]
+    bool ValidateWebSocketsUsed();
+}
+
+[ServiceContract]
+public interface IDataContractResolverService
+{
+    [OperationContract(Action = "http://tempuri.org/IDataContractResolverService/GetAllEmployees")]
+    List<Employee> GetAllEmployees();
+
+    [OperationContract(Action = "http://tempuri.org/IDataContractResolverService/AddEmployee")]
+    void AddEmployee(Employee employee);
+}
+
+
+[ServiceContract(SessionMode = SessionMode.Required)]
+public interface ISessionTestsDefaultService
+{
+    [OperationContract(IsInitiating = true, IsTerminating = false)]
+    int MethodAInitiating(int a);
+
+    [OperationContract(IsInitiating = false, IsTerminating = false)]
+    int MethodBNonInitiating(int b);
+
+    [OperationContract(IsInitiating = false, IsTerminating = true)]
+    SessionTestsCompositeType MethodCTerminating();
+}
+
+[ServiceContract(SessionMode = SessionMode.Required)]
+public interface ISessionTestsShortTimeoutService : ISessionTestsDefaultService
+{
+}
+
+[ServiceContract(CallbackContract = typeof(ISessionTestsDuplexCallback), SessionMode = SessionMode.Required)]
+public interface ISessionTestsDuplexService
+{
+    [OperationContract]
+    int NonTerminatingMethodCallingDuplexCallbacks(
+       int callsToClientCallbackToMake,
+       int callsToTerminatingClientCallbackToMake,
+       int callsToClientSideOnlyTerminatingClientCallbackToMake,
+       int callsToNonTerminatingMethodToMakeInsideClientCallback,
+       int callsToTerminatingMethodToMakeInsideClientCallback);
+
+    [OperationContract]
+    int TerminatingMethodCallingDuplexCallbacks(
+        int callsToClientCallbackToMake,
+        int callsToTerminatingClientCallbackToMake,
+        int callsToClientSideOnlyTerminatingClientCallbackToMake,
+        int callsToNonTerminatingMethodToMakeInsideClientCallback,
+        int callsToTerminatingMethodToMakeInsideClientCallback);
+
+    [OperationContract(IsInitiating = true, IsTerminating = false)]
+    int NonTerminatingMethod();
+
+    [OperationContract(IsInitiating = true, IsTerminating = true)]
+    int TerminatingMethod();
+}
+
+[ServiceContract(SessionMode = SessionMode.Required)]
+public interface ISessionTestsDuplexCallback
+{
+    [OperationContract(IsInitiating = true, IsTerminating = false)]
+    int ClientCallback(int callsToNonTerminatingMethodToMake, int callsToTerminatingMethodToMake);
+
+    [OperationContract(IsInitiating = true, IsTerminating = true)]
+    int TerminatingClientCallback(int callsToNonTerminatingMethodToMake, int callsToTerminatingMethodToMake);
+
+    [OperationContract(IsInitiating = true, IsTerminating = true)]
+    int ClientSideOnlyTerminatingClientCallback(int callsToNonTerminatingMethodToMake, int callsToTerminatingMethodToMake);
+}
+
+[ServiceContract, XmlSerializerFormat]
+public interface IXmlSFAttribute
+{
+    [OperationContract, XmlSerializerFormat(SupportFaults = true)]
+    [FaultContract(typeof(FaultDetailWithXmlSerializerFormatAttribute),
+        Action = "http://tempuri.org/IWcfService/FaultDetailWithXmlSerializerFormatAttribute",
+        Name = "FaultDetailWithXmlSerializerFormatAttribute",
+        Namespace = "http://www.contoso.com/wcfnamespace")]
+    void TestXmlSerializerSupportsFaults_True();
+
+    [OperationContract, XmlSerializerFormat]
+    [FaultContract(typeof(FaultDetailWithXmlSerializerFormatAttribute),
+        Action = "http://tempuri.org/IWcfService/FaultDetailWithXmlSerializerFormatAttribute",
+        Name = "FaultDetailWithXmlSerializerFormatAttribute",
+        Namespace = "http://www.contoso.com/wcfnamespace")]
+    void TestXmlSerializerSupportsFaults_False();
+}
+
+[ServiceContract(Namespace = "http://contoso.com/calc"), XmlSerializerFormat]
+public interface ICalculator
+{
+    [OperationContract, XmlSerializerFormat]
+    int Sum2(int i, int j);
+
+    [OperationContract, XmlSerializerFormat]
+    int Sum(IntParams par);
+
+    [OperationContract, XmlSerializerFormat]
+    float Divide(FloatParams par);
+
+    [OperationContract, XmlSerializerFormat]
+    string Concatenate(IntParams par);
+
+    [OperationContract, XmlSerializerFormat]
+    void AddIntParams(Guid guid, IntParams par);
+
+    [OperationContract, XmlSerializerFormat]
+    IntParams GetAndRemoveIntParams(Guid guid);
+
+    [OperationContract, XmlSerializerFormat]
+    DateTime ReturnInputDateTime(DateTime dt);
+
+    [OperationContract, XmlSerializerFormat]
+    byte[] CreateSet(ByteParams par);
+}
+
+[ServiceContract, XmlSerializerFormat]
+public interface IHelloWorld
+{
+    [OperationContract, XmlSerializerFormat]
+    void AddString(Guid guid, string testString);
+
+    [OperationContract, XmlSerializerFormat]
+    string GetAndRemoveString(Guid guid);
+}
+
+public class IntParams
+{
+    public int P1;
+    public int P2;
+}
+
+public class FloatParams
+{
+    public float P1;
+    public float P2;
+}
+
+public class ByteParams
+{
+    public byte P1;
+    public byte P2;
 }

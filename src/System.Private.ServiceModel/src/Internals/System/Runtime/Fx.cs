@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -8,6 +10,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Diagnostics;
+using System.Runtime.Serialization;
 using System.Security;
 using System.ServiceModel;
 
@@ -284,6 +287,11 @@ namespace System.Runtime
         public static AsyncCallback ThunkCallback(AsyncCallback callback)
         {
             return (new AsyncThunk(callback)).ThunkFrame;
+        }
+
+        public static Action<T1> ThunkCallback<T1>(Action<T1> callback)
+        {
+            return (new ActionThunk<T1>(callback)).ThunkFrame;
         }
 
         [SuppressMessage(FxCop.Category.ReliabilityBasic, FxCop.Rule.UseNewGuidHelperRule,
@@ -1005,13 +1013,26 @@ namespace System.Runtime
                 : base(InternalSR.ShipAssertExceptionMessage(description))
             {
             }
+
+            protected InternalException(SerializationInfo info, StreamingContext context)
+                : base(info, context)
+            {
+                throw new PlatformNotSupportedException();
+            }
         }
 
+        [Serializable]
         internal class FatalInternalException : InternalException
         {
             public FatalInternalException(string description)
                 : base(description)
             {
+            }
+
+            protected FatalInternalException(SerializationInfo info, StreamingContext context)
+                : base(info, context)
+            {
+                throw new PlatformNotSupportedException();
             }
         }
     }

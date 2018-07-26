@@ -1,306 +1,390 @@
 // Import the utility functionality.
 
 import jobs.generation.Utilities;
+import jobs.generation.JobReport;
 
-def project = 'dotnet/wcf'
+// The input project name (e.g. dotnet/corefx)
+def project = GithubProject
+// The input branch name (e.g. master)
+def branch = GithubBranchName
 
-// Utility to move into dotnet-ci eventually
+// Globals
+
+// Map of osName -> osGroup.
+def osGroupMap = ['Ubuntu':'Linux',
+                  'Ubuntu14.04':'Linux',
+                  'Ubuntu16.04':'Linux',
+                  'Debian8.4':'Linux',
+                  'OSX10.12':'OSX',
+                  'Windows_NT':'Windows_NT',
+                  'CentOS7.1': 'Linux',
+                  'RHEL7.2': 'Linux']
+
+// Map of osName -> nuget runtime
+def targetNugetRuntimeMap = ['OSX10.12' : 'osx.10.12-x64',
+                             'Ubuntu' : 'ubuntu.14.04-x64',
+                             'Ubuntu14.04' : 'ubuntu.14.04-x64',
+                             'Ubuntu16.04' : 'ubuntu.16.04-x64',
+                             'Debian8.4' : 'debian.8-x64',
+                             'CentOS7.1' : 'centos.7-x64',
+                             'RHEL7.2': 'rhel.7-x64']
+
+def osShortName = ['Windows 10': 'win10',
+                   'Windows 7' : 'win7',
+                   'Windows_NT' : 'windows_nt',
+                   'Ubuntu14.04' : 'ubuntu14.04',
+                   'OSX10.12' : 'osx',
+                   'Windows Nano 2016' : 'winnano16',
+                   'Ubuntu16.04' : 'ubuntu16.04',
+                   'CentOS7.1' : 'centos7.1',
+                   'Debian8.4' : 'debian8.4',
+                   'RHEL7.2' : 'rhel7.2']
+
+def configurationGroupList = ['Debug', 'Release']
 
 // **************************
-// Define the basic inner loop builds for PR 
+// Utilities shared for WCF Core builds
 // **************************
+class WcfUtilities
+{
+    def wcfPRServiceCount = 0 
+    
+    // Outerloop jobs for WCF Core require an external server reference
+    // Jenkins provides the correct parameters to the scripts to get the correct PR ID or branch
+    def addWcfOuterloopTestServiceSync(def job, String os, String branch, boolean isPR) { 
 
-// Create the test only builds for Linux
-// The test only build utilizes the artifacts from other jobs
-// as well as an upstream job in order to execute the runs on Linux.
-// Create one for PR and one for Regular
-[true, false].each { isPR ->
-    ['Debug', 'Release'].each { configuration ->
-        def configurationJobName = configuration.toLowerCase()
-        def jobName = "linux_${configurationJobName}_tst"
-        
-        def linuxTestJob = job(Utilities.getFullJobName(project, jobName, isPR)) {
-            label('ubuntu')
-            
+        def operation = isPR ? "pr" : "branch"
+        def currentWcfPRService = ++wcfPRServiceCount 
+
+        // workaround after branchifying - each branch independently runs this file hence our serial
+        // numbers will overlap on different branches
+        // Strictly speaking this file only needs to specify the starting point for the serial numbers of the branch it is in
+        // We are showing the starting points of other branches for the sake of clarity
+        if (branch.toLowerCase() == "release/1.0.0") {
+            currentWcfPRService = wcfPRServiceCount + 100
+        } else if (branch.toLowerCase() == "release/1.1.0") {
+            currentWcfPRService = wcfPRServiceCount + 150
+        } else if (branch.toLowerCase() == "release/2.0.0") {
+            currentWcfPRService = wcfPRServiceCount + 200
+        } else if (branch.toLowerCase() == "release/2.1.0") {
+            currentWcfPRService = wcfPRServiceCount + 250
+        } else if (branch.toLowerCase() == "release/uwp6.0") {
+            currentWcfPRService = wcfPRServiceCount + 300
+        } else if (branch.toLowerCase() == "release/uwp6.1") {
+            currentWcfPRService = wcfPRServiceCount + 350
+        }
+
+        job.with { 
             parameters {
-                stringParam('WCF_LINUX_BUILD_NUMBER', '', 'Build number to copy WCF Linux build artifacts from')
-            }
-            steps {
-                // Copy artifacts from all of the required upstream jobs
-            
-                copyArtifacts('dotnet_coreclr/release_ubuntu') {
-                    excludePatterns('**/testResults.xml', '**/*.ni.dll')
-                    buildSelector {
-                        latestSuccessful(true)
-                    }
-                    targetDirectory('coreclr')
-                }
-                
-                copyArtifacts('dotnet_coreclr/release_windows_nt') {
-                    includePatterns('bin/Product/Linux*/**')
-                    excludePatterns('**/testResults.xml', '**/*.ni.dll')
-                    buildSelector {
-                        latestSuccessful(true)
-                    }
-                    targetDirectory('coreclr')
-                }
-                
-                copyArtifacts('dotnet_corefx/nativecomp_ubuntu_debug') {
-                    includePatterns('bin/**')
-                    buildSelector {
-                        latestSuccessful(true)
-                    }
-                    targetDirectory('corefx')
-                }
-                
-                copyArtifacts('dotnet_corefx/ubuntu_debug_bld') {
-                    excludePatterns('**/testResults.xml', '**/*.ni.dll')
-                    buildSelector {
-                        latestSuccessful(true)
-                    }
-                    targetDirectory('corefx')
-                }
-                
-                // The input WCF build is specified by parameter.  See below for the flow job
-                // that triggers the Linux build, then passes that build result to this build.
-                // Upstream job is the PR test job.  Note we need the fully qualified job name
-                // in order to copy artifacts.
-                def linuxBuildName = Utilities.getFolderName(project) + '/' + 
-                    Utilities.getFullJobName(project, "linux_${configurationJobName}_bld", isPR)
-                
-                copyArtifacts(linuxBuildName) {
-                    includePatterns('bin/build.pack')
-                    buildSelector {
-                        buildNumber('${WCF_LINUX_BUILD_NUMBER}')
-                    }
-                }
-            
-                // Unpack
-                shell("unpacker ./bin/build.pack ./bin")
-                shell("""
-./run-test.sh --coreclr-bins \${WORKSPACE}/coreclr/bin/Product/Linux.x64.Release \\
---mscorlib-bins \${WORKSPACE}/coreclr/bin/Product/Linux.x64.Release \\
---corefx-bins \${WORKSPACE}/corefx/bin/Linux.AnyCPU.Debug/ \\
---corefx-native-bins \${WORKSPACE}/corefx/bin/Linux.x64.Debug/Native \\
---wcf-bins \${WORKSPACE}/bin/Linux.AnyCPU.${configuration} \\
---wcf-tests \${WORKSPACE}/bin/tests/Linux.AnyCPU.${configuration}""")
+                stringParam('WcfServiceUri', "wcfcoresrv2.cloudapp.net/WcfService${currentWcfPRService}", 'Wcf OuterLoop Test Service Uri')
+                stringParam('WcfPRServiceUri', "http://wcfcoresrv2.cloudapp.net/PRServiceMaster/pr.ashx", 'Wcf OuterLoop Test PR Service Uri')
+                stringParam('WcfPRServiceId', "${currentWcfPRService}", 'Wcf OuterLoop Test PR Service Id')
             }
         }
-        
-        // Finish off the job with the usual options
-        if (isPR) {
-            Utilities.addPRTestSCM(linuxTestJob, project)
-            Utilities.addStandardPRParameters(linuxTestJob, project)
-        }
+        if (os.toLowerCase().contains("windows")) {
+            job.with { 
+                steps {
+                    batchFile(".\\src\\System.Private.ServiceModel\\tools\\scripts\\sync-pr.cmd %WcfPRServiceId% ${operation} %WcfPRServiceUri%")
+                }           
+            }
+        } 
         else {
-            Utilities.addScm(linuxTestJob, project)
-            Utilities.addStandardNonPRParameters(linuxTestJob)
-        }
-        
-        Utilities.addStandardOptions(linuxTestJob)
-        Utilities.addXUnitDotNETResults(linuxTestJob, 'bin/tests/**/testResults.xml')
-    }
-}
-
-// Loop over the options and build up the innerloop build matrix.
-// When we go to create the Linux build, in addition to creating the regular job,
-// we should create a flow job that launches the build on Windows, followed by the
-// test on Linux, passing the build parameter to the linux test job.  Then, instead
-// of adding the PR/commit triggers to the build job, we should add it to the flow job.
-
-['Debug', 'Release'].each { configuration ->
-    ['Linux', 'Windows_NT'].each { os ->
-        // Calculate job name
-        def osJobName = os.toLowerCase()
-        if (osJobName == 'windows_nt') {
-            osJobName = 'windows'
-        }
-        def configurationJobName = configuration.toLowerCase()
-        def jobName = "${osJobName}_${configurationJobName}"
-        // The flow job name will be free of the suffix below
-        def flowJobName = jobName
-        
-        // If Linux, append _bld to the end.
-        if (os == 'Linux') {
-            jobName += '_bld'
-        }
-        
-        // Create the new job
-        def newCommitJob = job(Utilities.getFullJobName(project, jobName, false)) {
-            label('windows')
-            steps {
-                // Use inline replacement
-                batchFile("build.cmd /p:Configuration=${os}_${configuration} /p:OSGroup=${os}")
-                // Pack up the results for max efficiency
-                batchFile("C:\\Packer\\Packer.exe .\\bin\\build.pack .\\bin")
-            }
-        }
-
-        // Add commit job options
-        Utilities.addScm(newCommitJob, project)
-        Utilities.addStandardNonPRParameters(newCommitJob)
-        
-        // Don't add the push trigger if on Linux, since we'll run it through the
-        // flow job defined below
-        if (os != 'Linux') {
-            Utilities.addGithubPushTrigger(newCommitJob)
-        }
-        
-        // Create the new PR job
-        
-        def newPRJob = job(Utilities.getFullJobName(project, jobName, true)) {
-            label('windows')
-            steps {
-                // Use inline replacement
-                batchFile("build.cmd /p:Configuration=${os}_${configuration} /p:OSGroup=${os}")
-                // Pack up the results for max efficiency
-                batchFile("C:\\Packer\\Packer.exe .\\bin\\build.pack .\\bin")
-            }
-        }
-        
-        // Add a PR trigger
-        if (os != 'Linux') {
-            Utilities.addGithubPRTrigger(newPRJob, "${os} ${configuration} Build")
-        }
-        Utilities.addPRTestSCM(newPRJob, project)
-        Utilities.addStandardPRParameters(newPRJob, project)
-        
-        // Add common options:
-        
-        [newPRJob, newCommitJob].each { newJob ->
-            Utilities.addStandardOptions(newJob)
-            
-            if (os != 'Linux') {
-                Utilities.addXUnitDotNETResults(newJob, 'bin/tests/**/testResults.xml')
-                Utilities.addArchival(newJob, "bin/${os}.AnyCPU.${configuration}/**,bin/build.pack")
-            } else {
-                // Include the tests on Linux, since they'll be moved to another
-                // machine for execution
-                Utilities.addArchival(newJob, "bin/${os}.AnyCPU.${configuration}/**,bin/build.pack")
+            job.with { 
+                steps {
+                   shell("HOME=\$WORKSPACE/tempHome ./src/System.Private.ServiceModel/tools/scripts/sync-pr.sh \$WcfPRServiceId ${operation} \$WcfPRServiceUri")
+                }
             }
         }
     }
 }
 
-// Add flow jobs for Linux bld/tst
-
-[true, false].each { isPR ->
-    ['Debug', 'Release'].each { configuration ->
-        def configurationJobName = configuration.toLowerCase()
-        def jobName = "linux_${configurationJobName}"
-        
-        def linuxFlowJob = buildFlowJob(Utilities.getFullJobName(project, jobName, isPR)) {
-            def buildJobName = Utilities.getFolderName(project) + '/' + Utilities.getFullJobName(project, jobName + '_bld', isPR)
-            def testJobName = Utilities.getFolderName(project) + '/' + Utilities.getFullJobName(project, jobName + '_tst', isPR)
-            
-            buildFlow("""
-// Build the Linux _bld job
-def linuxBuildJob = build(params, \"${buildJobName}\")
-// Pass this to the test job.  Include the parameters
-build(params + [WCF_LINUX_BUILD_NUMBER: linuxBuildJob.build.number], 
-    \"${testJobName}\")
-            """)
-
-            // Needs a workspace
-            configure {
-                def buildNeedsWorkspace = it / 'buildNeedsWorkspace'
-                buildNeedsWorkspace.setValue('true')
-            }
-        }
-        
-        if (isPR) {
-            Utilities.addPRTestSCM(linuxFlowJob, project)
-            Utilities.addStandardPRParameters(linuxFlowJob, project)
-            Utilities.addGithubPRTrigger(linuxFlowJob, "Linux ${configuration} Build and Test")
-        }
-        else {
-            Utilities.addScm(linuxFlowJob, project)
-            Utilities.addStandardNonPRParameters(linuxFlowJob)
-            Utilities.addGithubPushTrigger(linuxFlowJob)
-        }
-        
-        Utilities.addStandardOptions(linuxFlowJob)
-    }
-}
+wcfUtilities = new WcfUtilities()
 
 // **************************
 // Define the code coverage jobs
 // **************************
 
-// Define build string
-def codeCoverageBuildString = '''build.cmd /p:Coverage=true /p:WithCategories=OuterLoop'''
-
-// Generate a rolling (12 hr job) and a PR job that can be run on demand
-
-def rollingCCJob = job(Utilities.getFullJobName(project, 'code_coverage_windows', false)) {
-  label('windows-elevated')
-  steps {
-    batchFile(codeCoverageBuildString)
-  }
-}
-
-def prCCJob = job(Utilities.getFullJobName(project, 'code_coverage_windows', true)) {
-  label('windows-elevated')
-  steps {
-    batchFile(codeCoverageBuildString)
-  }
-}
-
-// For both jobs, archive the coverage info and publish an HTML report
-[rollingCCJob, prCCJob].each { newJob ->
-    Utilities.addHtmlPublisher(newJob, 'bin/tests/coverage', 'Code Coverage Report', 'index.htm')
-    Utilities.addArchival(newJob, '**/coverage/*,msbuild.log')
-}
-
-Utilities.addScm(rollingCCJob, project)
-Utilities.addStandardOptions(rollingCCJob)
-Utilities.addStandardNonPRParameters(rollingCCJob)
-Utilities.addPeriodicTrigger(rollingCCJob, '@daily')
-             
-Utilities.addPRTestSCM(prCCJob, project)
-Utilities.addStandardOptions(prCCJob)
-Utilities.addStandardPRParameters(prCCJob, project)
-Utilities.addGithubPRTrigger(prCCJob, 'Code Coverage Windows Debug', '@dotnet-bot test code coverage please')
-
-// **************************
-// Outerloop.  Rolling every 4 hours for debug and release
-// **************************
-
-['Debug', 'Release'].each { configuration ->
-    def configurationJobName = configuration.toLowerCase()
-    def jobName = "outerloop_windows_${configurationJobName}"
+[true, false].each { isPR -> 
+    def os = "Windows_NT"
+    def configurationGroup = "Debug"
+    def newJobName = "code_coverage_${os.toLowerCase()}_${configurationGroup.toLowerCase()}"
     
     // Create the new rolling job
-    def newRollingJob = job(Utilities.getFullJobName(project, jobName, false)) {
-        label('windows-elevated')
+    def newJob = job(Utilities.getFullJobName(project, newJobName, isPR))
+    
+    wcfUtilities.addWcfOuterloopTestServiceSync(newJob, os, branch, isPR)
+    
+    newJob.with {
         steps {
-            batchFile("build.cmd /p:Configuration=Windows_NT_${configuration} /p:WithCategories=OuterLoop")
+            batchFile("build.cmd -coverage -outerloop -${configurationGroup} -- /p:ShouldGenerateNuSpec=false /p:OSGroup=${osGroupMap[os]} /p:ServiceUri=%WcfServiceUri%")
         }
     }
 
-    // Add commit job options
-    Utilities.addScm(newRollingJob, project)
-    Utilities.addStandardNonPRParameters(newRollingJob)
-    Utilities.addPeriodicTrigger(newRollingJob, 'H H/4 * * *')
+    // Set affinity for elevated machines
+    Utilities.setMachineAffinity(newJob, os, 'latest-or-auto-elevated')
+    // Set up standard options.
+    Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
+    // Add code coverage report
+    Utilities.addHtmlPublisher(newJob, 'bin/tests/coverage', 'Code Coverage Report', 'index.htm')
+    // Archive results
+    Utilities.addArchival(newJob, '**/coverage/*,msbuild.log')
     
-    // Create the new PR job for on demand execution.  No automatic PR trigger.
-    // Triggered with '@dotnet-bot test outerloop please'
-    
-    def newPRJob = job(Utilities.getFullJobName(project, jobName, true)) {
-        label('windows-elevated')
-        steps {
-            batchFile("build.cmd /p:Configuration=${os}_${configuration} /p:WithCategories=OuterLoop")
-        }
-    }
-    
-    // Add a PR trigger
-    Utilities.addGithubPRTrigger(newPRJob, "Outerloop Windows ${configuration} Build", '@dotnet-bot test outerloop please')
-    Utilities.addPRTestSCM(newPRJob, project)
-    Utilities.addStandardPRParameters(newPRJob, project)
-    
-    // Add common options   
-    [newPRJob, newRollingJob].each { newJob ->
-        Utilities.addStandardOptions(newJob)
-        Utilities.addXUnitDotNETResults(newJob, 'bin/tests/**/testResults.xml')
+    // Our outerloops rely on us calling WcfPRServiceUri to sync server code, after which the client 
+    // will test against WcfServiceUri.
+    // The current design limitation means that if we allow concurrent builds, it becomes possible to pave over 
+    // the server endpoint with mismatched code while another test is running.
+    // Due to this design limitation, we have to disable concurrent builds for outerloops 
+    newJob.concurrentBuild(false)
+
+    // Set triggers
+    if (isPR)
+    {
+        Utilities.addGithubPRTriggerForBranch(newJob, branch, "Code Coverage Windows_NT ${configurationGroup}", '(?i).*test\\W+code\\W*coverage.*')
+    } 
+    else {
+        Utilities.addPeriodicTrigger(newJob, '@daily')
     }
 }
+
+// **************************
+// Define outerloop testing on Windows_NT for seflhosted service
+// Note: This outerloop run can run concurrently unlike other ones due to the run being entirely self-contained 
+// **************************
+
+[true, false].each { isPR -> 
+    configurationGroupList.each { configurationGroup ->
+        def os = 'Windows_NT'
+        def newJobName = "outerloop_selfhost_${os.toLowerCase()}_${configurationGroup.toLowerCase()}"
+        def newJob = job(Utilities.getFullJobName(project, newJobName, isPR))
+        def targetGroup = "netcoreapp"
+        
+        newJob.with {
+            steps {
+                batchFile("build.cmd -framework:${targetGroup} -${configurationGroup} -os:${osGroupMap[os]}")
+                batchFile("build-tests.cmd -framework:${targetGroup} -${configurationGroup} -os:${osGroupMap[os]} -outerloop -- /p:IsCIBuild=true")
+            }
+        }
+
+        // Set affinity for elevated machines
+        Utilities.setMachineAffinity(newJob, os, 'latest-or-auto-elevated')
+
+        // Set up standard options.
+        Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
+        // Add the unit test results
+        Utilities.addXUnitDotNETResults(newJob, 'bin/**/testResults.xml')
+        
+        // Set up appropriate triggers. PR on demand, otherwise on change pushed
+        if (isPR) {
+            // Set PR trigger.
+            Utilities.addGithubPRTriggerForBranch(newJob, branch, "OuterLoop Selfhost ${os} ${configurationGroup}", "(?i).*test\\W+(all\\W+outerloop|outerloop\\W+selfhost\\W+${os}).*", false /*triggerOnPhraseOnly*/)
+        } 
+        else {
+            // Set a push trigger
+            Utilities.addGithubPushTrigger(newJob)
+        }
+    } 
+} 
+
+// **************************
+// Define outerloop testing for OSes that can build and run.  Run locally on each machine.
+// Subset runs on every PR, the ones that don't run per PR can be requested via a magic phrase
+// **************************
+
+def supportedFullCycleOuterloopPlatforms = ['Windows_NT', 'Ubuntu14.04', 'Ubuntu16.04', 'Debian8.4', 'CentOS7.1', 'RHEL7.2', 'OSX10.12']
+[true, false].each { isPR ->
+    configurationGroupList.each { configurationGroup ->
+        supportedFullCycleOuterloopPlatforms.each { os ->
+            def newJobName = "outerloop_${os.toLowerCase()}_${configurationGroup.toLowerCase()}"
+            def newJob = job(Utilities.getFullJobName(project, newJobName, isPR))
+            def targetGroup = "netcoreapp"
+            
+            wcfUtilities.addWcfOuterloopTestServiceSync(newJob, os, branch, isPR)
+            
+            if (osGroupMap[os] == 'Windows_NT') {
+                newJob.with {
+                    steps {
+                        batchFile("build.cmd -framework:${targetGroup} -${configurationGroup} -os:${osGroupMap[os]}")
+                        batchFile("build-tests.cmd -framework:${targetGroup} -${configurationGroup} -os:${osGroupMap[os]} -outerloop -- /p:ServiceUri=%WcfServiceUri% /p:SSL_Available=true /p:Root_Certificate_Installed=true /p:Client_Certificate_Installed=true /p:Peer_Certificate_Installed=true /p:IsCIBuild=true")
+                    }
+                }
+            }
+            // We have enabled all certificate tests except peer trust tests on linux OSs. Enabling peer trust tests on Linux OSs
+            // needs further investigations.
+            else {
+                newJob.with {
+                    steps {
+                        shell("HOME=\$WORKSPACE/tempHome ./build.sh -${configurationGroup.toLowerCase()}")
+                        shell("HOME=\$WORKSPACE/tempHome ./build-tests.sh -${configurationGroup.toLowerCase()} -outerloop -testWithLocalLibraries -- /p:OSGroup=${osGroupMap[os]} /p:ServiceUri=\$WcfServiceUri /p:SSL_Available=true /p:Client_Certificate_Installed=true /p:Root_Certificate_Installed=true /p:IsCIBuild=true")
+                    }
+                }
+            }
+
+            // Set the affinity.  OS name matches the machine affinity.
+            if (os == 'Windows_NT' || os == 'OSX10.12') {
+                // Set affinity for elevated machines on Windows
+                Utilities.setMachineAffinity(newJob, os, 'latest-or-auto-elevated')
+            } 
+            else if (osGroupMap[os] == 'Linux') {
+                Utilities.setMachineAffinity(newJob, os, "outer-latest-or-auto")
+            } 
+            else {
+                Utilities.setMachineAffinity(newJob, os, 'latest-or-auto')
+            }
+
+            // Set up standard options.
+            Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
+            // Add the unit test results
+            Utilities.addXUnitDotNETResults(newJob, 'bin/**/testResults.xml')
+            // Add archival for the built data.
+            Utilities.addArchival(newJob, "msbuild.log", '', doNotFailIfNothingArchived=true, archiveOnlyIfSuccessful=false)
+
+            // Our outerloops rely on us calling WcfPRServiceUri to sync server code, after which the client 
+            // will test against WcfServiceUri.
+            // The current design limitation means that if we allow concurrent builds, it becomes possible to pave over 
+            // the server endpoint with mismatched code while another test is running.
+            // Due to this design limitation, we have to disable concurrent builds for outerloops 
+            newJob.concurrentBuild(false)
+
+            // Set up appropriate triggers. PR on demand, otherwise daily
+            if (isPR) {
+                // Set PR trigger.
+                if ( os == 'Windows_NT' || os == 'Ubuntu14.04' || os == 'CentOS7.1' || os == 'OSX10.12' ) {
+                    Utilities.addGithubPRTriggerForBranch(newJob, branch, "OuterLoop ${os} ${configurationGroup}", "(?i).*test\\W+(all\\W+outerloop|outerloop\\W+${os}).*", false /*triggerOnPhraseOnly*/)
+                } 
+                else {                  
+                    Utilities.addGithubPRTriggerForBranch(newJob, branch, "OuterLoop ${os} ${configurationGroup}", "(?i).*test\\W+(all\\W+outerloop|outerloop\\W+${os}).*", true /*triggerOnPhraseOnly*/)
+                } 
+            } 
+            else {
+                // Set a periodic trigger, runs daily regardless of whether a change happened
+                Utilities.addPeriodicTrigger(newJob, '@daily', true /*alwaysRuns*/)
+
+                // Set a push trigger
+                Utilities.addGithubPushTrigger(newJob)
+            }
+        }
+    } 
+} 
+
+// **************************
+// Define innerloop testing for OSes that can build and run.  Run locally on each machine.
+// Subset runs on every PR, the ones that don't run per PR can be requested via a magic phrase
+// **************************
+
+def supportedFullCycleInnerloopPlatforms = ['Windows_NT', 'Ubuntu14.04', 'Ubuntu16.04', 'Debian8.4', 'CentOS7.1', 'RHEL7.2', 'OSX10.12']
+[true, false].each { isPR ->
+    configurationGroupList.each { configurationGroup ->
+        supportedFullCycleInnerloopPlatforms.each { os -> 
+            def newJobName = "${os.toLowerCase()}_${configurationGroup.toLowerCase()}"
+            def targetGroup = "netcoreapp"
+            
+            def newJob = job(Utilities.getFullJobName(project, newJobName, isPR))
+            
+            if (osGroupMap[os] == 'Windows_NT')
+            {
+                newJob.with {
+                    steps {
+                        batchFile("call \"C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\vcvarsall.bat\" x86 && build.cmd -${configurationGroup} -os:${osGroupMap[os]} -framework:${targetGroup}")
+                        batchFile("call \"C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\vcvarsall.bat\" x86 && build-tests.cmd -${configurationGroup} -os:${osGroupMap[os]} -framework:${targetGroup} -- /p:IsCIBuild=true")
+                        batchFile("C:\\Packer\\Packer.exe .\\bin\\build.pack .\\bin")
+                    }
+                }
+            } 
+            else {
+                newJob.with {
+                    steps {
+                    def useServerGC = (configurationGroup == 'Release' && isPR) ? 'useServerGC' : ''
+                        shell("HOME=\$WORKSPACE/tempHome ./build.sh -${configurationGroup.toLowerCase()} -framework:${targetGroup} -os:${osGroupMap[os]}")
+                        shell("HOME=\$WORKSPACE/tempHome ./build-tests.sh -${configurationGroup.toLowerCase()} -framework:${targetGroup} -os:${osGroupMap[os]} -- ${useServerGC} /p:IsCIBuild=true")
+                    }
+                }
+            }
+            
+            // Set the affinity  
+            Utilities.setMachineAffinity(newJob, os, 'latest-or-auto')
+            // Set up standard options
+            Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
+            // Add the unit test results
+            Utilities.addXUnitDotNETResults(newJob, 'bin/**/testResults.xml')
+
+            def archiveContents = "msbuild.log"
+
+            // Add archival for the built data
+            if (os.contains('Windows')) {
+                archiveContents += ",bin/build.pack"
+            } 
+            else {
+                archiveContents != ",bin/build.tar.gz"
+            }
+            
+            Utilities.addArchival(newJob, archiveContents, '', doNotFailIfNothingArchived=true, archiveOnlyIfSuccessful=false)
+
+            // Set up triggers
+            if (isPR) {
+                // Set PR trigger
+                if ( os == 'Windows_NT' || os == 'Ubuntu14.04' || os == 'CentOS7.1' || os == 'OSX10.12' ) {
+                    Utilities.addGithubPRTriggerForBranch(newJob, branch, "InnerLoop ${os} ${configurationGroup}", "(?i).*test\\W+(all\\W+innerloop|innerloop\\W+${os}).*", false /*triggerOnPhraseOnly*/)
+                } 
+                else {
+                    Utilities.addGithubPRTriggerForBranch(newJob, branch, "InnerLoop ${os} ${configurationGroup}", "(?i).*test\\W+(all\\W+innerloop|innerloop\\W+${os}).*", true /*triggerOnPhraseOnly*/)
+                }
+            } 
+            else {
+                // Set a push trigger
+                Utilities.addGithubPushTrigger(newJob)
+            }
+        }
+    }
+}
+
+// **************************
+// Define outerloop testing on Windows_NT for UAP, run locally on each machine.
+// **************************
+
+// [true, false].each { isPR -> 
+    // configurationGroupList.each { configurationGroup ->
+        // def os = 'Windows_NT'
+        // def newJobName = "outerloop_${os.toLowerCase()}_UAP_${configurationGroup.toLowerCase()}"
+        // def newJob = job(Utilities.getFullJobName(project, newJobName, isPR))
+        // def targetGroup = "uap"
+        
+        // newJob.with {
+            // steps {
+                // batchFile("build.cmd -framework:${targetGroup} -${configurationGroup} -os:${osGroupMap[os]}")
+                // batchFile("build-tests.cmd -framework:${targetGroup} -${configurationGroup} -os:${osGroupMap[os]} -outerloop -- /p:ServiceUri=%WcfServiceUri% /p:SSL_Available=true /p:Root_Certificate_Installed=true /p:Client_Certificate_Installed=true /p:Peer_Certificate_Installed=true /p:IsCIBuild=true")
+            // }
+        // }
+
+        // // Set affinity for elevated machines
+        // Utilities.setMachineAffinity(newJob, os, 'latest-or-auto-elevated')
+
+        // // Set up standard options.
+        // Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
+        // // Add the unit test results
+        // Utilities.addXUnitDotNETResults(newJob, 'bin/**/testResults.xml')
+
+        // // Our outerloops rely on us calling WcfPRServiceUri to sync server code, after which the client 
+            // // will test against WcfServiceUri.
+            // // The current design limitation means that if we allow concurrent builds, it becomes possible to pave over 
+            // // the server endpoint with mismatched code while another test is running.
+            // // Due to this design limitation, we have to disable concurrent builds for outerloops 
+            // newJob.concurrentBuild(false)
+        
+        // // Set up appropriate triggers. PR on demand, otherwise on change pushed
+        // if (isPR) {
+            // // Set PR trigger.
+            // Utilities.addGithubPRTriggerForBranch(newJob, branch, "OuterLoop ${os} ${configurationGroup}", "(?i).*test\\W+(all\\W+outerloop|outerloop\\W+${os}).*", false /*triggerOnPhraseOnly*/)
+        // } 
+        // else {
+            // // Set a push trigger
+            // Utilities.addGithubPushTrigger(newJob)
+        // }
+    // } 
+// } 
+
+JobReport.Report.generateJobReport(out)
+
+Utilities.createHelperJob(this, project, branch,
+    "Welcome to the ${project} repository",  // This is prepended to the help message
+    "Have a nice day!")  // This is appended to the help message.  You might put known issues here.
+

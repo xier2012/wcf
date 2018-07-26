@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Collections.Generic;
 using System.Globalization;
@@ -442,12 +444,12 @@ namespace System.ServiceModel.Description
             return types;
         }
 
-        static internal object[] GetCustomAttributes(CustomAttributeProvider attrProvider, Type attrType)
+        static internal object[] GetCustomAttributes(ICustomAttributeProvider attrProvider, Type attrType)
         {
             return GetCustomAttributes(attrProvider, attrType, false);
         }
 
-        static internal object[] GetCustomAttributes(CustomAttributeProvider attrProvider, Type attrType, bool inherit)
+        static internal object[] GetCustomAttributes(ICustomAttributeProvider attrProvider, Type attrType, bool inherit)
         {
             try
             {
@@ -477,9 +479,9 @@ namespace System.ServiceModel.Description
                     throw;
                 }
 
-                Type type = attrProvider.Type;
-                MethodInfo method = attrProvider.MethodInfo;
-                ParameterInfo param = attrProvider.ParameterInfo;
+                Type type = attrProvider as Type;
+                MethodInfo method = attrProvider as MethodInfo;
+                ParameterInfo param = attrProvider as ParameterInfo;
                 // there is no good way to know if this is a return type attribute
                 if (type != null)
                 {
@@ -507,7 +509,7 @@ namespace System.ServiceModel.Description
             }
         }
 
-        static internal T GetFirstAttribute<T>(CustomAttributeProvider attrProvider)
+        static internal T GetFirstAttribute<T>(ICustomAttributeProvider attrProvider)
             where T : class
         {
             Type attrType = typeof(T);
@@ -522,7 +524,7 @@ namespace System.ServiceModel.Description
             }
         }
 
-        static internal T GetSingleAttribute<T>(CustomAttributeProvider attrProvider)
+        static internal T GetSingleAttribute<T>(ICustomAttributeProvider attrProvider)
             where T : class
         {
             Type attrType = typeof(T);
@@ -540,7 +542,7 @@ namespace System.ServiceModel.Description
                 return attrs[0] as T;
             }
         }
-        static internal T GetRequiredSingleAttribute<T>(CustomAttributeProvider attrProvider)
+        static internal T GetRequiredSingleAttribute<T>(ICustomAttributeProvider attrProvider)
             where T : class
         {
             T result = GetSingleAttribute<T>(attrProvider);
@@ -550,7 +552,7 @@ namespace System.ServiceModel.Description
             }
             return result;
         }
-        static internal T GetSingleAttribute<T>(CustomAttributeProvider attrProvider, Type[] attrTypeGroup)
+        static internal T GetSingleAttribute<T>(ICustomAttributeProvider attrProvider, Type[] attrTypeGroup)
             where T : class
         {
             T result = GetSingleAttribute<T>(attrProvider);
@@ -572,7 +574,7 @@ namespace System.ServiceModel.Description
             }
             return result;
         }
-        static internal T GetRequiredSingleAttribute<T>(CustomAttributeProvider attrProvider, Type[] attrTypeGroup)
+        static internal T GetRequiredSingleAttribute<T>(ICustomAttributeProvider attrProvider, Type[] attrTypeGroup)
             where T : class
         {
             T result = GetSingleAttribute<T>(attrProvider, attrTypeGroup);

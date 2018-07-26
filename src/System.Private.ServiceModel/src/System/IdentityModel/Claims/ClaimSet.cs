@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Collections;
 using System.Collections.Generic;
@@ -36,7 +38,6 @@ namespace System.IdentityModel.Claims
         {
             get
             {
-#if SUPPORTS_WINDOWSIDENTITY // NegotiateStream
                 if (s_windows == null)
                 {
                     List<Claim> claims = new List<Claim>(2);
@@ -46,9 +47,6 @@ namespace System.IdentityModel.Claims
                     s_windows = new DefaultClaimSet(claims);
                 }
                 return s_windows;
-#else 
-                throw ExceptionHelper.PlatformNotSupported(ExceptionHelper.WinsdowsStreamSecurityNotSupported);
-#endif // SUPPORTS_WINDOWSIDENTITY
             }
         }
 

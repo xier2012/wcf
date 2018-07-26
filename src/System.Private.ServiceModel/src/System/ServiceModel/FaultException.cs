@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Collections.Generic;
 using System.Runtime;
@@ -110,6 +112,12 @@ namespace System.ServiceModel
             _reason = fault.Reason;
             _fault = fault;
             _action = action;
+        }
+
+        protected FaultException(SerializationInfo info, StreamingContext context)
+            : base(info, context)
+        {
+            throw new PlatformNotSupportedException();
         }
 
         public string Action
@@ -366,6 +374,12 @@ namespace System.ServiceModel
             : base(reason, code, action)
         {
             _detail = detail;
+        }
+
+        protected FaultException(SerializationInfo info, StreamingContext context)
+            : base(info, context)
+        {
+            throw new PlatformNotSupportedException();
         }
 
         public TDetail Detail

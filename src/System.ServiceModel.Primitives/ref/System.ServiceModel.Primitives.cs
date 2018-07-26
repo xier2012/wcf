@@ -4,6 +4,57 @@
 // Changes to this file must follow the http://aka.ms/api-review process.
 // ------------------------------------------------------------------------------
 
+namespace System.Collections.Generic {
+      public partial class SynchronizedCollection<T> : IList<T>, IList
+      {
+           public SynchronizedCollection() { }
+           public SynchronizedCollection(object syncRoot) { }
+           public SynchronizedCollection(object syncRoot, IEnumerable<T> list) { }
+           public SynchronizedCollection(object syncRoot, params T[] list) { }
+           public int Count { get { return default(int); } }
+           protected List<T> Items { get { return default(List<T>); } }
+           public object SyncRoot { get { return default(object); } }
+           public T this[int index] { get {return default(T); } set { } }
+           public void Add(T item) { }
+           public void Clear() { }
+           public void CopyTo(T[] array, int index) {}
+           public bool Contains(T item) { return default(bool); }
+           public IEnumerator<T> GetEnumerator() { return default(IEnumerator<T>); }
+           public int IndexOf(T item) { return default(int); }
+           public void Insert(int index, T item) { }
+           public bool Remove(T item) { return default(bool); }
+           public void RemoveAt(int index) { }
+           protected virtual void ClearItems() { }
+           protected virtual void InsertItem(int index, T item) { }
+           protected virtual void RemoveItem(int index) { }
+           protected virtual void SetItem(int index, T item) { }
+           bool ICollection<T>.IsReadOnly { get { return default(bool); } }
+           IEnumerator IEnumerable.GetEnumerator() { return default(IEnumerator); }
+           bool ICollection.IsSynchronized { get { return default(bool); } }
+           object ICollection.SyncRoot { get { return default(object); } }
+           void ICollection.CopyTo(Array array, int index) {}
+           object IList.this[int index] { get { return default(object); } set { }}
+           bool IList.IsReadOnly { get { return default(bool); } }
+           bool IList.IsFixedSize { get { return default(bool); } }
+           int IList.Add(object value) { return default(int); }
+           bool IList.Contains(object value) { return default(bool); }
+           int IList.IndexOf(object value) { return default(int); }
+           void IList.Insert(int index, object value) { }
+           void IList.Remove(object value) { }
+      }
+    public partial class KeyedByTypeCollection<TItem> : System.Collections.ObjectModel.KeyedCollection<Type, TItem>
+    {
+        public KeyedByTypeCollection() { }
+        public KeyedByTypeCollection(IEnumerable<TItem> items) { }
+        public T Find<T>() { return default(T); }
+        public T Remove<T>() { return default(T); }
+        public System.Collections.ObjectModel.Collection<T> FindAll<T>() { return default(System.Collections.ObjectModel.Collection<T>); }
+        public System.Collections.ObjectModel.Collection<T> RemoveAll<T>() { return default(System.Collections.ObjectModel.Collection<T>); }
+        protected override Type GetKeyForItem(TItem item) { return default(Type); }
+        protected override void InsertItem(int index, TItem item) { }
+        protected override void SetItem(int index, TItem item) { }
+    }
+}
 namespace System.IdentityModel.Selectors {
   public abstract partial class X509CertificateValidator {
     protected X509CertificateValidator() { }
@@ -17,6 +68,7 @@ namespace System.ServiceModel
         public ActionNotSupportedException() { }
         public ActionNotSupportedException(string message) { }
         public ActionNotSupportedException(string message, System.Exception innerException) { }
+        protected ActionNotSupportedException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
     }
     public abstract partial class ChannelFactory : System.ServiceModel.Channels.CommunicationObject, System.IDisposable, System.ServiceModel.Channels.IChannelFactory, System.ServiceModel.ICommunicationObject
     {
@@ -55,7 +107,14 @@ namespace System.ServiceModel
         public virtual TChannel CreateChannel(System.ServiceModel.EndpointAddress address, System.Uri via) { return default(TChannel); }
         protected override System.ServiceModel.Description.ServiceEndpoint CreateDescription() { return default(System.ServiceModel.Description.ServiceEndpoint); }
     }
-    public abstract partial class ClientBase<TChannel> : System.ServiceModel.ICommunicationObject where TChannel : class
+    public partial class ChannelTerminatedException : System.ServiceModel.CommunicationException
+    {
+        public ChannelTerminatedException() { }
+        public ChannelTerminatedException(string message) { }
+        public ChannelTerminatedException(string message, System.Exception innerException) { }
+        protected ChannelTerminatedException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
+    }
+    public abstract partial class ClientBase<TChannel> : System.IDisposable, System.ServiceModel.ICommunicationObject where TChannel : class
     {
         protected ClientBase() { }
         protected ClientBase(System.ServiceModel.Channels.Binding binding, System.ServiceModel.EndpointAddress remoteAddress) { }
@@ -74,6 +133,7 @@ namespace System.ServiceModel
         event System.EventHandler System.ServiceModel.ICommunicationObject.Opened { add { } remove { } }
         event System.EventHandler System.ServiceModel.ICommunicationObject.Opening { add { } remove { } }
         public void Abort() { }
+        public void Close() { }
         protected virtual TChannel CreateChannel() { return default(TChannel); }
         protected T GetDefaultValueForInitialization<T>() { return default(T); }
         protected void InvokeAsync(System.ServiceModel.ClientBase<TChannel>.BeginOperationDelegate beginOperationDelegate, object[] inValues, System.ServiceModel.ClientBase<TChannel>.EndOperationDelegate endOperationDelegate, System.Threading.SendOrPostCallback operationCompletedCallback, object userState) { }
@@ -87,6 +147,7 @@ namespace System.ServiceModel
         void System.ServiceModel.ICommunicationObject.EndOpen(System.IAsyncResult result) { }
         void System.ServiceModel.ICommunicationObject.Open() { }
         void System.ServiceModel.ICommunicationObject.Open(System.TimeSpan timeout) { }
+        void System.IDisposable.Dispose() { }
         protected delegate System.IAsyncResult BeginOperationDelegate(object[] inValues, System.AsyncCallback asyncCallback, object state);
         protected partial class ChannelBase<T> : System.IDisposable, System.ServiceModel.Channels.IChannel, System.ServiceModel.Channels.IOutputChannel, System.ServiceModel.Channels.IRequestChannel, System.ServiceModel.IClientChannel, System.ServiceModel.ICommunicationObject, System.ServiceModel.IContextChannel, System.ServiceModel.IExtensibleObject<System.ServiceModel.IContextChannel> where T : class
         {
@@ -156,18 +217,21 @@ namespace System.ServiceModel
         public CommunicationException() { }
         public CommunicationException(string message) { }
         public CommunicationException(string message, System.Exception innerException) { }
+        protected CommunicationException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
     }
     public partial class CommunicationObjectAbortedException : System.ServiceModel.CommunicationException
     {
         public CommunicationObjectAbortedException() { }
         public CommunicationObjectAbortedException(string message) { }
         public CommunicationObjectAbortedException(string message, System.Exception innerException) { }
+        protected CommunicationObjectAbortedException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
     }
     public partial class CommunicationObjectFaultedException : System.ServiceModel.CommunicationException
     {
         public CommunicationObjectFaultedException() { }
         public CommunicationObjectFaultedException(string message) { }
         public CommunicationObjectFaultedException(string message, System.Exception innerException) { }
+        protected CommunicationObjectFaultedException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
     }
     public enum CommunicationState
     {
@@ -225,6 +289,7 @@ namespace System.ServiceModel
     {
         public EndpointNotFoundException(string message) { }
         public EndpointNotFoundException(string message, System.Exception innerException) { }
+        protected EndpointNotFoundException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
     }
     public sealed partial class EnvelopeVersion
     {
@@ -251,6 +316,17 @@ namespace System.ServiceModel
         [System.Runtime.Serialization.DataMemberAttribute]
         public string Type { get { return default(string); } set { } }
         public override string ToString() { return default(string); }
+    }
+    public sealed partial class ExtensionCollection<T> : System.Collections.Generic.SynchronizedCollection<System.ServiceModel.IExtension<T>>, System.ServiceModel.IExtensionCollection<T> where T : System.ServiceModel.IExtensibleObject<T>
+    {
+        public ExtensionCollection(T owner) { }
+        public ExtensionCollection(T owner, object syncRoot) : base(syncRoot) { }
+        protected override void ClearItems() { }
+        public E Find<E>() { return default(E); }
+        public System.Collections.ObjectModel.Collection<E> FindAll<E>() { return default(System.Collections.ObjectModel.Collection<E>); }
+        protected override void InsertItem(int index, System.ServiceModel.IExtension<T> item) { }
+        protected override void RemoveItem(int index) { }
+        protected override void SetItem(int index, System.ServiceModel.IExtension<T> item) { }
     }
     public partial class FaultCode
     {
@@ -280,6 +356,7 @@ namespace System.ServiceModel
         public FaultException() { }
         public FaultException(System.ServiceModel.Channels.MessageFault fault, string action) { }
         public FaultException(System.ServiceModel.FaultReason reason, System.ServiceModel.FaultCode code, string action) { }
+        protected FaultException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
         public string Action { get { return default(string); } }
         public System.ServiceModel.FaultCode Code { get { return default(System.ServiceModel.FaultCode); } }
         public override string Message { get { return default(string); } }
@@ -291,6 +368,7 @@ namespace System.ServiceModel
     public partial class FaultException<TDetail> : System.ServiceModel.FaultException
     {
         public FaultException(TDetail detail, System.ServiceModel.FaultReason reason, System.ServiceModel.FaultCode code, string action) { }
+        protected FaultException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
         public TDetail Detail { get { return default(TDetail); } }
         public override System.ServiceModel.Channels.MessageFault CreateMessageFault() { return default(System.ServiceModel.Channels.MessageFault); }
         public override string ToString() { return default(string); }
@@ -378,11 +456,17 @@ namespace System.ServiceModel
         public InvalidMessageContractException() { }
         public InvalidMessageContractException(string message) { }
         public InvalidMessageContractException(string message, System.Exception innerException) { }
+        protected InvalidMessageContractException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
     }
     [System.AttributeUsageAttribute((System.AttributeTargets)(384), AllowMultiple = false, Inherited = false)]
-    public class MessageHeaderAttribute : MessageContractMemberAttribute
+    public partial class MessageHeaderAttribute : MessageContractMemberAttribute
     {
         public bool MustUnderstand { get { return default(bool); } set { } } 
+    }
+    [System.AttributeUsageAttribute((System.AttributeTargets)(384), AllowMultiple = false, Inherited = false)]
+    public sealed partial class MessageHeaderArrayAttribute : MessageHeaderAttribute
+    {
+        public MessageHeaderArrayAttribute() { }
     }
     [System.AttributeUsageAttribute((System.AttributeTargets)(384), Inherited = false)]
     public partial class MessageBodyMemberAttribute : System.ServiceModel.MessageContractMemberAttribute
@@ -403,6 +487,12 @@ namespace System.ServiceModel
         protected MessageContractMemberAttribute() { }
         public string Name { get { return default(string); } set { } }
         public string Namespace { get { return default(string); } set { } }
+    }
+    [System.AttributeUsageAttribute((System.AttributeTargets)(384), AllowMultiple = false)]
+    public sealed partial class MessagePropertyAttribute : System.Attribute
+    {
+        public MessagePropertyAttribute() { }
+        public string Name { get { return default(string); } set { } }
     }
     public enum MessageCredentialType
     {
@@ -432,6 +522,7 @@ namespace System.ServiceModel
         public MessageHeaderException(string message, string headerName, string ns, bool isDuplicate) : base(default(string)) { }
         public MessageHeaderException(string message, string headerName, string ns, bool isDuplicate, System.Exception innerException) : base(default(string)) { }
         public MessageHeaderException(string message, string headerName, string ns, System.Exception innerException) : base(default(string)) { }
+        protected MessageHeaderException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) : base(info, context) { }
         public string HeaderName { get { return default(string); } }
         public string HeaderNamespace { get { return default(string); } }
         public bool IsDuplicate { get { return default(bool); } }
@@ -455,6 +546,8 @@ namespace System.ServiceModel
         public System.ServiceModel.Channels.MessageProperties OutgoingMessageProperties { get { return default(System.ServiceModel.Channels.MessageProperties); } }
         public System.ServiceModel.Channels.RequestContext RequestContext { get { return default(System.ServiceModel.Channels.RequestContext); } set { } }
         public event System.EventHandler OperationCompleted { add { } remove { } }
+        public T GetCallbackChannel<T>() { return default(T); }
+        public System.ServiceModel.IContextChannel Channel { get { return default(System.ServiceModel.IContextChannel); } }
     }
     public sealed partial class OperationContextScope : System.IDisposable
     {
@@ -468,6 +561,8 @@ namespace System.ServiceModel
         public OperationContractAttribute() { }
         public string Action { get { return default(string); } set { } }
         public bool AsyncPattern { get { return default(bool); } set { } }
+        public bool IsInitiating { get { return default(bool); } set { } }
+        public bool IsTerminating { get { return default(bool); } set { } }
         public bool IsOneWay { get { return default(bool); } set { } }
         public string Name { get { return default(string); } set { } }
         public string ReplyAction { get { return default(string); } set { } }
@@ -477,15 +572,22 @@ namespace System.ServiceModel
         Document = 0,
         Rpc = 1,
     }
+    public enum OperationFormatUse
+    {
+        Literal,
+        Encoded,
+    }
     public partial class ProtocolException : System.ServiceModel.CommunicationException
     {
         public ProtocolException(string message) { }
         public ProtocolException(string message, System.Exception innerException) { }
+        protected ProtocolException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
     }
     public partial class QuotaExceededException : System.Exception
     {
         public QuotaExceededException(string message) { }
         public QuotaExceededException(string message, System.Exception innerException) { }
+        protected QuotaExceededException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
     }
     public enum SecurityMode
     {
@@ -498,11 +600,13 @@ namespace System.ServiceModel
     {
         public ServerTooBusyException(string message) { }
         public ServerTooBusyException(string message, System.Exception innerException) { }
+        protected ServerTooBusyException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
     }
     public partial class ServiceActivationException : System.ServiceModel.CommunicationException
     {
         public ServiceActivationException(string message) { }
         public ServiceActivationException(string message, System.Exception innerException) { }
+        protected ServiceActivationException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
     }
     [System.AttributeUsageAttribute((System.AttributeTargets)(1028), Inherited = false, AllowMultiple = false)]
     public sealed partial class ServiceContractAttribute : System.Attribute
@@ -512,6 +616,13 @@ namespace System.ServiceModel
         public string ConfigurationName { get { return default(string); } set { } }
         public string Name { get { return default(string); } set { } }
         public string Namespace { get { return default(string); } set { } }
+        public SessionMode SessionMode { get { return SessionMode.Allowed; } set { } }
+    }
+    public enum SessionMode
+    {
+        Allowed,
+        Required,
+        NotAllowed,
     }
     [System.AttributeUsageAttribute((System.AttributeTargets)(1092), Inherited = true, AllowMultiple = true)]
     public sealed partial class ServiceKnownTypeAttribute : System.Attribute
@@ -541,6 +652,7 @@ namespace System.ServiceModel
         public XmlSerializerFormatAttribute() { }
         public System.ServiceModel.OperationFormatStyle Style { get { return default(System.ServiceModel.OperationFormatStyle); } set { } }
         public bool SupportFaults { get { return default(bool); } set { } }
+        public OperationFormatUse Use{ get { throw null; } set { } }
     }
 }
 namespace System.ServiceModel.Channels
@@ -578,6 +690,7 @@ namespace System.ServiceModel.Channels
         internal AddressingVersion() { }
         public static System.ServiceModel.Channels.AddressingVersion None { get { return default(System.ServiceModel.Channels.AddressingVersion); } }
         public static System.ServiceModel.Channels.AddressingVersion WSAddressing10 { get { return default(System.ServiceModel.Channels.AddressingVersion); } }
+        public static System.ServiceModel.Channels.AddressingVersion WSAddressingAugust2004 { get { return default(System.ServiceModel.Channels.AddressingVersion); } }
         public override string ToString() { return default(string); }
     }
     public sealed partial class BinaryMessageEncodingBindingElement : System.ServiceModel.Channels.MessageEncodingBindingElement
@@ -1042,6 +1155,7 @@ namespace System.ServiceModel.Channels
         public System.ServiceModel.Channels.MessageHeaderInfo this[int index] { get { return default(System.ServiceModel.Channels.MessageHeaderInfo); } }
         public System.Xml.UniqueId MessageId { get { return default(System.Xml.UniqueId); } set { } }
         public System.ServiceModel.Channels.MessageVersion MessageVersion { get { return default(System.ServiceModel.Channels.MessageVersion); } }
+        public System.ServiceModel.Channels.UnderstoodHeaders UnderstoodHeaders { get { return default(System.ServiceModel.Channels.UnderstoodHeaders); } }
         public System.Xml.UniqueId RelatesTo { get { return default(System.Xml.UniqueId); } set { } }
         public System.ServiceModel.EndpointAddress ReplyTo { get { return default(System.ServiceModel.EndpointAddress); } set { } }
         public System.Uri To { get { return default(System.Uri); } set { } }
@@ -1118,7 +1232,9 @@ namespace System.ServiceModel.Channels
         public System.ServiceModel.EnvelopeVersion Envelope { get { return default(System.ServiceModel.EnvelopeVersion); } }
         public static System.ServiceModel.Channels.MessageVersion None { get { return default(System.ServiceModel.Channels.MessageVersion); } }
         public static System.ServiceModel.Channels.MessageVersion Soap11 { get { return default(System.ServiceModel.Channels.MessageVersion); } }
+        public static System.ServiceModel.Channels.MessageVersion Soap11WSAddressingAugust2004 { get { return default(System.ServiceModel.Channels.MessageVersion); } }
         public static System.ServiceModel.Channels.MessageVersion Soap12WSAddressing10 { get { return default(System.ServiceModel.Channels.MessageVersion); } }
+        public static System.ServiceModel.Channels.MessageVersion Soap12WSAddressingAugust2004 { get { return default(System.ServiceModel.Channels.MessageVersion); } }
         public static System.ServiceModel.Channels.MessageVersion CreateVersion(System.ServiceModel.EnvelopeVersion envelopeVersion) { return default(System.ServiceModel.Channels.MessageVersion); }
         public static System.ServiceModel.Channels.MessageVersion CreateVersion(System.ServiceModel.EnvelopeVersion envelopeVersion, System.ServiceModel.Channels.AddressingVersion addressingVersion) { return default(System.ServiceModel.Channels.MessageVersion); }
         public override bool Equals(object obj) { return default(bool); }
@@ -1163,6 +1279,15 @@ namespace System.ServiceModel.Channels
         public abstract string Scheme { get; }
         public override T GetProperty<T>(System.ServiceModel.Channels.BindingContext context) { return default(T); }
     }
+    public sealed partial class UnderstoodHeaders : System.Collections.Generic.IEnumerable<System.ServiceModel.Channels.MessageHeaderInfo>
+    {
+        internal UnderstoodHeaders() { }
+        public void Add(System.ServiceModel.Channels.MessageHeaderInfo headerInfo) { }
+        public bool Contains(System.ServiceModel.Channels.MessageHeaderInfo headerInfo) { return default(bool); }
+        public System.Collections.Generic.IEnumerator<System.ServiceModel.Channels.MessageHeaderInfo> GetEnumerator() { return default(System.Collections.Generic.IEnumerator<System.ServiceModel.Channels.MessageHeaderInfo>); }
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() { return default(System.Collections.IEnumerator); }
+        public void Remove(System.ServiceModel.Channels.MessageHeaderInfo headerInfo) { }
+    }
 }
 namespace System.ServiceModel.Description
 {
@@ -1191,6 +1316,7 @@ namespace System.ServiceModel.Description
         public string ConfigurationName { get { return default(string); } set { } }
         public System.Collections.ObjectModel.KeyedCollection<System.Type, System.ServiceModel.Description.IContractBehavior> ContractBehaviors { get { return default(System.Collections.ObjectModel.KeyedCollection<System.Type, System.ServiceModel.Description.IContractBehavior>); } }
         public System.Type ContractType { get { return default(System.Type); } set { } }
+        public static System.ServiceModel.Description.ContractDescription GetContract(System.Type contractType) { return default(System.ServiceModel.Description.ContractDescription); }
         public string Name { get { return default(string); } set { } }
         public string Namespace { get { return default(string); } set { } }
         public System.ServiceModel.Description.OperationDescriptionCollection Operations { get { return default(System.ServiceModel.Description.OperationDescriptionCollection); } }
@@ -1320,6 +1446,8 @@ namespace System.ServiceModel.Description
     public partial class OperationDescription
     {
         public OperationDescription(string name, System.ServiceModel.Description.ContractDescription declaringContract) { }
+        [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+        public System.Collections.Generic.KeyedByTypeCollection<System.ServiceModel.Description.IOperationBehavior> Behaviors { get { return default(System.Collections.Generic.KeyedByTypeCollection<System.ServiceModel.Description.IOperationBehavior>); } }
         public System.ServiceModel.Description.ContractDescription DeclaringContract { get { return default(System.ServiceModel.Description.ContractDescription); } set { } }
         public System.ServiceModel.Description.FaultDescriptionCollection Faults { get { return default(System.ServiceModel.Description.FaultDescriptionCollection); } }
         public bool IsOneWay { get { return default(bool); } }
@@ -1347,6 +1475,17 @@ namespace System.ServiceModel.Description
         public System.Collections.ObjectModel.KeyedCollection<System.Type, System.ServiceModel.Description.IEndpointBehavior> EndpointBehaviors { get { return default(System.Collections.ObjectModel.KeyedCollection<System.Type, System.ServiceModel.Description.IEndpointBehavior>); } }
         public string Name { get { return default(string); } set { } }
     }
+    public partial class XmlSerializerOperationBehavior : System.ServiceModel.Description.IOperationBehavior
+    {
+        public XmlSerializerOperationBehavior(System.ServiceModel.Description.OperationDescription operation) { }
+        public XmlSerializerOperationBehavior(System.ServiceModel.Description.OperationDescription operation, System.ServiceModel.XmlSerializerFormatAttribute attribute) { }
+        public System.ServiceModel.XmlSerializerFormatAttribute XmlSerializerFormatAttribute { get { return default(System.ServiceModel.XmlSerializerFormatAttribute); } }
+        public System.Collections.ObjectModel.Collection<System.Xml.Serialization.XmlMapping> GetXmlMappings() { throw null; }
+        void System.ServiceModel.Description.IOperationBehavior.Validate(System.ServiceModel.Description.OperationDescription description) { }
+        void System.ServiceModel.Description.IOperationBehavior.AddBindingParameters(System.ServiceModel.Description.OperationDescription description, System.ServiceModel.Channels.BindingParameterCollection parameters) { }
+        void System.ServiceModel.Description.IOperationBehavior.ApplyDispatchBehavior(System.ServiceModel.Description.OperationDescription description, System.ServiceModel.Dispatcher.DispatchOperation dispatch) { }
+        void System.ServiceModel.Description.IOperationBehavior.ApplyClientBehavior(System.ServiceModel.Description.OperationDescription description, System.ServiceModel.Dispatcher.ClientOperation proxy) { }
+    }
 }
 namespace System.ServiceModel.Dispatcher
 {
@@ -1355,6 +1494,7 @@ namespace System.ServiceModel.Dispatcher
         public ClientOperation(System.ServiceModel.Dispatcher.ClientRuntime parent, string name, string action) { }
         public ClientOperation(System.ServiceModel.Dispatcher.ClientRuntime parent, string name, string action, string replyAction) { }
         public string Action { get { return default(string); } }
+        public System.Collections.Generic.SynchronizedCollection<FaultContractInfo> FaultContractInfos { get { return default(System.Collections.Generic.SynchronizedCollection<FaultContractInfo>); } }
         public System.Collections.Generic.ICollection<System.ServiceModel.Dispatcher.IParameterInspector> ClientParameterInspectors { get { return default(System.Collections.Generic.ICollection<System.ServiceModel.Dispatcher.IParameterInspector>); } }
         public bool DeserializeReply { get { return default(bool); } set { } }
         public System.ServiceModel.Dispatcher.IClientMessageFormatter Formatter { get { return default(System.ServiceModel.Dispatcher.IClientMessageFormatter); } set { } }
@@ -1369,11 +1509,13 @@ namespace System.ServiceModel.Dispatcher
     public sealed partial class ClientRuntime
     {
         internal ClientRuntime() { }
+        public System.Collections.Generic.SynchronizedCollection<IChannelInitializer> ChannelInitializers { get { return default(System.Collections.Generic.SynchronizedCollection<IChannelInitializer>); } }
         public System.Collections.Generic.ICollection<System.ServiceModel.Dispatcher.IClientMessageInspector> ClientMessageInspectors { get { return default(System.Collections.Generic.ICollection<System.ServiceModel.Dispatcher.IClientMessageInspector>); } }
         public System.Collections.Generic.ICollection<System.ServiceModel.Dispatcher.ClientOperation> ClientOperations { get { return default(System.Collections.Generic.ICollection<System.ServiceModel.Dispatcher.ClientOperation>); } }
         public System.Type ContractClientType { get { return default(System.Type); } set { } }
         public string ContractName { get { return default(string); } }
         public string ContractNamespace { get { return default(string); } }
+        public System.Collections.Generic.SynchronizedCollection<IInteractiveChannelInitializer> InteractiveChannelInitializers { get { return default(System.Collections.Generic.SynchronizedCollection<IInteractiveChannelInitializer>); } }
         public bool ManualAddressing { get { return default(bool); } set { } }
         public int MaxFaultSize { get { return default(int); } set { } }
         public System.ServiceModel.Dispatcher.IClientOperationSelector OperationSelector { get { return default(System.ServiceModel.Dispatcher.IClientOperationSelector); } set { } }
@@ -1399,6 +1541,16 @@ namespace System.ServiceModel.Dispatcher
     {
         internal EndpointDispatcher() { }
     }
+    public partial class FaultContractInfo
+    {
+         public FaultContractInfo(string action, Type detail) {}
+         public string Action { get { return default(string); } }
+         public Type Detail { get { return default(Type); } }
+    }
+    public partial interface IChannelInitializer
+    {
+        void Initialize(IClientChannel channel);
+    }
     public partial interface IClientMessageFormatter
     {
         object DeserializeReply(System.ServiceModel.Channels.Message message, object[] parameters);
@@ -1413,6 +1565,11 @@ namespace System.ServiceModel.Dispatcher
     {
         bool AreParametersRequiredForSelection { get; }
         string SelectOperation(System.Reflection.MethodBase method, object[] parameters);
+    }
+    public partial interface IInteractiveChannelInitializer
+    {
+        IAsyncResult BeginDisplayInitializationUI(IClientChannel channel, AsyncCallback callback, object state);
+        void EndDisplayInitializationUI(IAsyncResult result);
     }
     public partial interface IParameterInspector
     {
@@ -1431,11 +1588,20 @@ namespace System.ServiceModel.Security
     {
         public MessageSecurityException(string message) { }
         public MessageSecurityException(string message, System.Exception innerException) { }
+        protected MessageSecurityException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
     }
     public partial class SecurityAccessDeniedException : System.ServiceModel.CommunicationException
     {
         public SecurityAccessDeniedException(string message) { }
         public SecurityAccessDeniedException(string message, System.Exception innerException) { }
+        protected SecurityAccessDeniedException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
+    }
+    public partial class SecurityNegotiationException : System.ServiceModel.CommunicationException
+    {
+        public SecurityNegotiationException() { }
+        public SecurityNegotiationException(string message) { }
+        public SecurityNegotiationException(string message, System.Exception innerException) { }
+        protected SecurityNegotiationException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
     }
     public sealed partial class UserNamePasswordClientCredential
     {
@@ -1450,7 +1616,7 @@ namespace System.ServiceModel.Security
         public System.Net.NetworkCredential ClientCredential { get { return default(System.Net.NetworkCredential); } set { } }
     }
     public sealed partial class X509ServiceCertificateAuthentication {
-        internal X509ServiceCertificateAuthentication() { }
+        public X509ServiceCertificateAuthentication() { }
         public System.ServiceModel.Security.X509CertificateValidationMode CertificateValidationMode { get { return default(System.ServiceModel.Security.X509CertificateValidationMode); } set { } }
         public System.IdentityModel.Selectors.X509CertificateValidator CustomCertificateValidator { get { return default(System.IdentityModel.Selectors.X509CertificateValidator); } set { } }
         public System.Security.Cryptography.X509Certificates.X509RevocationMode RevocationMode { get { return default(System.Security.Cryptography.X509Certificates.X509RevocationMode); } set { } }

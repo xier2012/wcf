@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.ComponentModel;
 using System.Runtime;
@@ -38,6 +40,21 @@ namespace System.ServiceModel
             {
                 _httpTransport.AllowCookies = value;
                 _httpsTransport.AllowCookies = value;
+            }
+        }
+
+        [DefaultValue(HttpTransportDefaults.BypassProxyOnLocal)]
+        public bool BypassProxyOnLocal
+        {
+            get
+            {
+                return _httpTransport.BypassProxyOnLocal;
+            }
+
+            set
+            {
+                _httpTransport.BypassProxyOnLocal = value;
+                _httpsTransport.BypassProxyOnLocal = value;
             }
         }
 
@@ -101,6 +118,22 @@ namespace System.ServiceModel
             }
         }
 
+        [DefaultValue(HttpTransportDefaults.ProxyAddress)]
+        [TypeConverter(typeof(UriTypeConverter))]
+        public Uri ProxyAddress
+        {
+            get
+            {
+                return _httpTransport.ProxyAddress;
+            }
+
+            set
+            {
+                _httpTransport.ProxyAddress = value;
+                _httpsTransport.ProxyAddress = value;
+            }
+        }
+
         public XmlDictionaryReaderQuotas ReaderQuotas
         {
             get
@@ -116,7 +149,7 @@ namespace System.ServiceModel
                 }
 
                 value.CopyTo(_textEncoding.ReaderQuotas);
-                this.SetReaderQuotas(value);
+                SetReaderQuotas(value);
             }
         }
 
@@ -124,13 +157,13 @@ namespace System.ServiceModel
         {
             get
             {
-                return this.GetTransport().Scheme;
+                return GetTransport().Scheme;
             }
         }
 
         public EnvelopeVersion EnvelopeVersion
         {
-            get { return this.GetEnvelopeVersion(); }
+            get { return GetEnvelopeVersion(); }
         }
 
         public Encoding TextEncoding
@@ -161,11 +194,18 @@ namespace System.ServiceModel
             }
         }
 
+        [DefaultValue(HttpTransportDefaults.UseDefaultWebProxy)]
         public bool UseDefaultWebProxy
         {
             get
             {
                 return _httpTransport.UseDefaultWebProxy;
+            }
+
+            set
+            {
+                _httpTransport.UseDefaultWebProxy = value;
+                _httpsTransport.UseDefaultWebProxy = value;
             }
         }
 
@@ -228,9 +268,9 @@ namespace System.ServiceModel
 
         internal TransportBindingElement GetTransport()
         {
-            Fx.Assert(this.BasicHttpSecurity != null, "this.BasicHttpSecurity should not return null from a derived class.");
+            Fx.Assert(BasicHttpSecurity != null, "this.BasicHttpSecurity should not return null from a derived class.");
 
-            BasicHttpSecurity basicHttpSecurity = this.BasicHttpSecurity;
+            BasicHttpSecurity basicHttpSecurity = BasicHttpSecurity;
             if (basicHttpSecurity.Mode == BasicHttpSecurityMode.Transport || basicHttpSecurity.Mode == BasicHttpSecurityMode.TransportWithMessageCredential)
             {
                 basicHttpSecurity.EnableTransportSecurity(_httpsTransport);
@@ -258,7 +298,7 @@ namespace System.ServiceModel
         // In the Win8 profile, some settings for the binding security are not supported.
         internal virtual void CheckSettings()
         {
-            BasicHttpSecurity security = this.BasicHttpSecurity;
+            BasicHttpSecurity security = BasicHttpSecurity;
             if (security == null)
             {
                 return;
@@ -274,12 +314,12 @@ namespace System.ServiceModel
                 throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new NotSupportedException(SR.Format(SR.UnsupportedSecuritySetting, "Mode", mode)));
             }
 
-            // Transport.ClientCredentialType = Certificate or InheritedFromHost are not supported.
+            // Transport.ClientCredentialType = InheritedFromHost are not supported.
             Fx.Assert(
                 (mode == BasicHttpSecurityMode.Transport) || (mode == BasicHttpSecurityMode.TransportCredentialOnly),
                 "Unexpected BasicHttpSecurityMode value: " + mode);
             HttpTransportSecurity transport = security.Transport;
-            if ((transport != null) && ((transport.ClientCredentialType == HttpClientCredentialType.Certificate) || (transport.ClientCredentialType == HttpClientCredentialType.InheritedFromHost)))
+            if (transport != null && transport.ClientCredentialType == HttpClientCredentialType.InheritedFromHost)
             {
                 throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new NotSupportedException(SR.Format(SR.UnsupportedSecuritySetting, "Transport.ClientCredentialType", transport.ClientCredentialType)));
             }

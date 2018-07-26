@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -21,6 +23,7 @@ namespace System.ServiceModel.Description
         private static Type[] s_messageContractMemberAttributes = {
             typeof(MessageHeaderAttribute),
             typeof(MessageBodyMemberAttribute),
+            typeof(MessagePropertyAttribute)
         };
 
         private static Type[] s_formatterAttributes = {
@@ -28,7 +31,7 @@ namespace System.ServiceModel.Description
             typeof(DataContractFormatAttribute)
         };
 
-        private static Type[] s_knownTypesMethodParamType = new Type[] { typeof(CustomAttributeProvider) };
+        private static Type[] s_knownTypesMethodParamType = new Type[] { typeof(ICustomAttributeProvider) };
 
         internal static DataContractFormatAttribute DefaultDataContractFormatAttribute = new DataContractFormatAttribute();
         internal static XmlSerializerFormatAttribute DefaultXmlSerializerFormatAttribute = new XmlSerializerFormatAttribute();
@@ -352,7 +355,7 @@ namespace System.ServiceModel.Description
             }
         }
 
-        private IEnumerable<Type> GetKnownTypes(object[] knownTypeAttributes, CustomAttributeProvider provider)
+        private IEnumerable<Type> GetKnownTypes(object[] knownTypeAttributes, ICustomAttributeProvider provider)
         {
             if (knownTypeAttributes.Length == 1)
             {
@@ -362,9 +365,9 @@ namespace System.ServiceModel.Description
                     Type type = knownTypeAttribute.DeclaringType;
                     if (type == null)
                     {
-                        type = provider.Type;
-                        if (type == null && provider.MethodInfo != null)
-                            type = provider.MethodInfo.DeclaringType;
+                        type = provider as Type;
+                        if (type == null && provider is MethodInfo providerAsMethod)
+                            type = providerAsMethod.DeclaringType;
                     }
                     MethodInfo method = type.GetRuntimeMethod(knownTypeAttribute.MethodName, s_knownTypesMethodParamType);
                     if (method == null)
@@ -797,7 +800,7 @@ namespace System.ServiceModel.Description
             return contractDescription;
         }
 
-        internal static Attribute GetFormattingAttribute(CustomAttributeProvider attrProvider, Attribute defaultFormatAttribute)
+        internal static Attribute GetFormattingAttribute(ICustomAttributeProvider attrProvider, Attribute defaultFormatAttribute)
         {
             if (attrProvider != null)
             {
@@ -951,6 +954,8 @@ namespace System.ServiceModel.Description
 
             OperationDescription operationDescription = new OperationDescription(operationName.EncodedName, declaringContract);
             operationDescription.IsInitiating = opAttr.IsInitiating;
+            operationDescription.IsTerminating = opAttr.IsTerminating;
+
             operationDescription.IsSessionOpenNotificationEnabled = opAttr.IsSessionOpenNotificationEnabled;
 
             operationDescription.HasNoDisposableParameters = ServiceReflector.HasNoDisposableParameters(methodInfo);
@@ -1193,7 +1198,7 @@ namespace System.ServiceModel.Description
 
         private MessageDescription CreateParameterMessageDescription(ParameterInfo[] parameters,
                                                   Type returnType,
-                                                  CustomAttributeProvider returnAttrProvider,
+                                                  ICustomAttributeProvider returnAttrProvider,
                                                   XmlName returnValueName,
                                                   string methodName,
                                                   string defaultNS,
@@ -1242,7 +1247,7 @@ namespace System.ServiceModel.Description
             return messageDescription;
         }
 
-        private static MessagePartDescription CreateParameterPartDescription(XmlName defaultName, string defaultNS, int index, CustomAttributeProvider attrProvider, Type type)
+        private static MessagePartDescription CreateParameterPartDescription(XmlName defaultName, string defaultNS, int index, ICustomAttributeProvider attrProvider, Type type)
         {
             MessagePartDescription parameterPart;
             MessageParameterAttribute paramAttr = ServiceReflector.GetSingleAttribute<MessageParameterAttribute>(attrProvider);
@@ -1257,7 +1262,7 @@ namespace System.ServiceModel.Description
 
         [SuppressMessage(FxCop.Category.Usage, "CA2301:EmbeddableTypesInContainersRule", MessageId = "messages", Justification = "No need to support type equivalence here.")]
         internal MessageDescription CreateTypedMessageDescription(Type typedMessageType,
-                                                  CustomAttributeProvider returnAttrProvider,
+                                                  ICustomAttributeProvider returnAttrProvider,
                                                   XmlName returnValueName,
                                                   string defaultNS,
                                                   string action,
@@ -1329,9 +1334,10 @@ namespace System.ServiceModel.Description
                         }
                     }
 
-
                     if (memberInfo.IsDefined(typeof(MessageBodyMemberAttribute), false) ||
-                        memberInfo.IsDefined(typeof(MessageHeaderAttribute), false)
+                        memberInfo.IsDefined(typeof(MessageHeaderAttribute), false) ||
+                        memberInfo.IsDefined(typeof(MessageHeaderArrayAttribute), false) ||
+                        memberInfo.IsDefined(typeof(MessagePropertyAttribute), false)
                         )
                     {
                         contractMembers.Add(memberInfo);
@@ -1358,7 +1364,8 @@ namespace System.ServiceModel.Description
                     memberType = ((FieldInfo)memberInfo).FieldType;
                 }
 
-                if (memberInfo.IsDefined(typeof(MessageHeaderAttribute), false))
+                if (memberInfo.IsDefined(typeof(MessageHeaderArrayAttribute), false) ||
+                    memberInfo.IsDefined(typeof(MessageHeaderAttribute), false))
                 {
                     headerPartDescriptionList.Add(CreateMessageHeaderDescription(memberType,
                                                                               memberInfo,
@@ -1366,6 +1373,12 @@ namespace System.ServiceModel.Description
                                                                               defaultNS,
                                                                               i,
                                                                               -1));
+                }
+                else if (memberInfo.IsDefined(typeof(MessagePropertyAttribute), false))
+                {
+                    messageDescription.Properties.Add(CreateMessagePropertyDescription(memberInfo,
+                                                                                        new XmlName(memberInfo.Name),
+                                                                                        i));
                 }
                 else
                 {
@@ -1404,7 +1417,7 @@ namespace System.ServiceModel.Description
 
 
         private MessagePartDescription CreateMessagePartDescription(Type bodyType,
-                                                         CustomAttributeProvider attrProvider,
+                                                         ICustomAttributeProvider attrProvider,
                                                          XmlName defaultName,
                                                          string defaultNS,
                                                          int parameterIndex,
@@ -1430,17 +1443,17 @@ namespace System.ServiceModel.Description
                 }
             }
 
-            if (attrProvider.MemberInfo != null)
+            if (attrProvider is MemberInfo attrMember)
             {
-                partDescription.MemberInfo = attrProvider.MemberInfo;
+                partDescription.MemberInfo = attrMember;
             }
             partDescription.Type = bodyType;
             partDescription.Index = parameterIndex;
             return partDescription;
         }
 
-        MessageHeaderDescription CreateMessageHeaderDescription(Type headerParameterType,
-                                                                    CustomAttributeProvider attrProvider,
+        private MessageHeaderDescription CreateMessageHeaderDescription(Type headerParameterType,
+                                                                    ICustomAttributeProvider attrProvider,
                                                                     XmlName defaultName,
                                                                     string defaultNS,
                                                                     int parameterIndex,
@@ -1453,7 +1466,15 @@ namespace System.ServiceModel.Description
             headerDescription = new MessageHeaderDescription(headerName.EncodedName, headerNs);
             headerDescription.UniquePartName = defaultName.EncodedName;
 
-            // check on MessageHeaderArrayAttribute is omitted.
+            if (headerAttr is MessageHeaderArrayAttribute)
+            {
+                if (!headerParameterType.IsArray || headerParameterType.GetArrayRank() != 1)
+                {
+                    throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new InvalidOperationException(SR.Format(SR.SFxInvalidMessageHeaderArrayType, defaultName)));
+                }
+                headerDescription.Multiple = true;
+                headerParameterType = headerParameterType.GetElementType();
+            }
 
             headerDescription.Type = TypedHeaderManager.GetHeaderType(headerParameterType);
             headerDescription.TypedHeader = (headerParameterType != headerDescription.Type);
@@ -1475,26 +1496,27 @@ namespace System.ServiceModel.Description
             {
                 headerDescription.ProtectionLevel = headerAttr.ProtectionLevel;
             }
-            if (attrProvider.MemberInfo != null)
+            if (attrProvider is MemberInfo attrMemberInfo)
             {
-                headerDescription.MemberInfo = attrProvider.MemberInfo;
+                headerDescription.MemberInfo = attrMemberInfo;
             }
 
             headerDescription.Index = parameterIndex;
             return headerDescription;
         }
 
-        private MessagePropertyDescription CreateMessagePropertyDescription(CustomAttributeProvider attrProvider,
+        private MessagePropertyDescription CreateMessagePropertyDescription(ICustomAttributeProvider attrProvider,
                                                             XmlName defaultName,
                                                             int parameterIndex)
         {
-            XmlName propertyName = defaultName;
+            MessagePropertyAttribute attr = ServiceReflector.GetSingleAttribute<MessagePropertyAttribute>(attrProvider);
+            XmlName propertyName = attr.IsNameSetExplicit ? new XmlName(attr.Name) : defaultName;
             MessagePropertyDescription propertyDescription = new MessagePropertyDescription(propertyName.EncodedName);
             propertyDescription.Index = parameterIndex;
 
-            if (attrProvider.MemberInfo != null)
+            if (attrProvider is MemberInfo attrMemberInfo)
             {
-                propertyDescription.MemberInfo = attrProvider.MemberInfo;
+                propertyDescription.MemberInfo = attrMemberInfo;
             }
 
             return propertyDescription;

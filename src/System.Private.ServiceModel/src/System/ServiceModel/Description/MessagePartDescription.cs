@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.ComponentModel;
 using System.Diagnostics;
@@ -20,7 +22,7 @@ namespace System.ServiceModel.Description
         private ProtectionLevel _protectionLevel;
         private bool _hasProtectionLevel;
         private MemberInfo _memberInfo;
-        private CustomAttributeProvider _additionalAttributesProvider;
+        private ICustomAttributeProvider _additionalAttributesProvider;
 
         private bool _multiple;
         private string _baseType;
@@ -132,7 +134,7 @@ namespace System.ServiceModel.Description
             set { _memberInfo = value; }
         }
 
-        internal CustomAttributeProvider AdditionalAttributesProvider
+        internal ICustomAttributeProvider AdditionalAttributesProvider
         {
             get { return _additionalAttributesProvider ?? _memberInfo; }
             set { _additionalAttributesProvider = value; }

@@ -1,10 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime;
 using System.ServiceModel.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace System.ServiceModel.Channels
@@ -18,6 +21,7 @@ namespace System.ServiceModel.Channels
         private TaskCompletionSource<object> _closedTcs;
 
         private bool _closed;
+        private int _outstandRequestCloseCount;
 
         protected RequestChannel(ChannelManagerBase channelFactory, EndpointAddress to, Uri via, bool manualAddressing)
             : base(channelFactory)
@@ -72,16 +76,6 @@ namespace System.ServiceModel.Channels
             }
         }
 
-        protected IAsyncResult BeginWaitForPendingRequests(TimeSpan timeout, AsyncCallback callback, object state)
-        {
-            return WaitForPendingRequestsAsync(timeout).ToApm(callback, state);
-        }
-
-        protected void EndWaitForPendingRequests(IAsyncResult result)
-        {
-            result.ToApmEnd();
-        }
-
         private void FinishClose()
         {
             lock (_outstandingRequests)
@@ -89,9 +83,10 @@ namespace System.ServiceModel.Channels
                 if (!_closed)
                 {
                     _closed = true;
-                    if (_closedTcs != null)
+                    var closedTcs = _closedTcs;
+                    if (closedTcs != null)
                     {
-                        _closedTcs.TrySetResult(null);
+                        closedTcs.TrySetResult(null);
                         _closedTcs = null;
                     }
                 }
@@ -182,24 +177,37 @@ namespace System.ServiceModel.Channels
 
         private void ReleaseRequest(IRequestBase request)
         {
-            if (request != null)
+            try
             {
-                // Synchronization of OnReleaseRequest is the 
-                // responsibility of the concrete implementation of request.
-                request.OnReleaseRequest();
-            }
-
-            lock (_outstandingRequests)
-            {
-                // Remove supports the connection having been removed, so don't need extra Contains() check,
-                // even though this may have been removed by Abort()
-                _outstandingRequests.Remove(request);
-                if (_outstandingRequests.Count == 0)
+                if (request != null)
                 {
-                    if (!_closed && _closedTcs != null)
+                    // Synchronization of OnReleaseRequest is the 
+                    // responsibility of the concrete implementation of request.
+                    request.OnReleaseRequest();
+                }
+            }
+            finally
+            {
+                // Setting _closedTcs needs to happen in a finally block to guarantee that we complete
+                // a waiting close even if OnReleaseRequest throws
+                lock (_outstandingRequests)
+                {
+                    _outstandingRequests.Remove(request);
+                    var outstandingRequestCloseCount = Interlocked.Decrement(ref _outstandRequestCloseCount);
+
+                    if (outstandingRequestCloseCount == 0 && _closedTcs != null)
                     {
-                        _closedTcs.TrySetResult(null);
-                        _closedTcs = null;
+                        // When we are closed or closing, _closedTcs is managed by the close logic.
+                        if (!_closed)
+                        {
+                            // Protect against close altering _closedTcs concurrently by caching the value.
+                            // Calling TrySetResult on an already completed TCS is a no-op
+                            var closedTcs = _closedTcs;
+                            if (closedTcs != null)
+                            {
+                                closedTcs.TrySetResult(null);
+                            }
+                        }
                     }
                 }
             }
@@ -211,6 +219,7 @@ namespace System.ServiceModel.Channels
             {
                 ThrowIfDisposedOrNotOpen(); // make sure that we haven't already snapshot our collection
                 _outstandingRequests.Add(request);
+                Interlocked.Increment(ref _outstandRequestCloseCount);
             }
         }
 
@@ -238,7 +247,7 @@ namespace System.ServiceModel.Channels
 
         public Message Request(Message message, TimeSpan timeout)
         {
-            return RequestAsyncInternal(message, timeout).WaitForCompletion();
+            return RequestAsyncInternal(message, timeout).WaitForCompletionNoSpin();
         }
 
         public Task<Message> RequestAsync(Message message)
@@ -318,12 +327,6 @@ namespace System.ServiceModel.Channels
         void Abort(RequestChannel requestChannel);
         void Fault(RequestChannel requestChannel);
         void OnReleaseRequest();
-    }
-
-    public interface IRequest : IRequestBase
-    {
-        void SendRequest(Message message, TimeSpan timeout);
-        Message WaitForReply(TimeSpan timeout);
     }
 
     public interface IAsyncRequest : IRequestBase

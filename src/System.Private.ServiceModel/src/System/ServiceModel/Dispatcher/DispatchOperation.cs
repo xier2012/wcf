@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.Collections.Generic;
 
@@ -12,6 +14,7 @@ namespace System.ServiceModel.Dispatcher
         private IDispatchMessageFormatter _formatter;
         private IDispatchFaultFormatter _faultFormatter;
         private IOperationInvoker _invoker;
+        private bool _isTerminating;
         private bool _isSessionOpenNotificationEnabled;
         private readonly string _name;
         private readonly SynchronizedCollection<IParameterInspector> _parameterInspectors;
@@ -95,7 +98,7 @@ namespace System.ServiceModel.Dispatcher
             {
                 if (_faultFormatter == null)
                 {
-                   _faultFormatter = new DataContractSerializerFaultFormatter(_faultContractInfos);
+                    _faultFormatter = new DataContractSerializerFaultFormatter(_faultContractInfos);
                 }
                 return _faultFormatter;
             }
@@ -142,6 +145,19 @@ namespace System.ServiceModel.Dispatcher
                 {
                     _parent.InvalidateRuntime();
                     _invoker = value;
+                }
+            }
+        }
+
+        public bool IsTerminating
+        {
+            get { return _isTerminating; }
+            set
+            {
+                lock (_parent.ThisLock)
+                {
+                    _parent.InvalidateRuntime();
+                    _isTerminating = value;
                 }
             }
         }

@@ -1,16 +1,19 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System.ServiceModel;
 using System.ServiceModel.Channels;
 using System.ServiceModel.Tests.Common;
+using Infrastructure.Common;
 using Xunit;
 
 public static class MessageTest
 {
     private const string s_action = "http://tempuri.org/someserviceendpoint";
 
-    [Theory]
+    [WcfTheory]
     [MemberData("MessageVersionsWithEnvelopeAndAddressingVersions", MemberType = typeof(TestData))]
     public static void MessageVersion_Verify_AddressingVersions_And_EnvelopeVersions(MessageVersion messageVersion, EnvelopeVersion envelopeVersion, AddressingVersion addressingVersion)
     {
@@ -18,7 +21,7 @@ public static class MessageTest
         Assert.Equal<AddressingVersion>(addressingVersion, messageVersion.Addressing);
     }
 
-    [Fact]
+    [WcfFact]
     public static void CreateMessageWithSoap12WSAddressing10_WithNoBody()
     {
         var message = Message.CreateMessage(MessageVersion.Soap12WSAddressing10, s_action);
@@ -26,7 +29,7 @@ public static class MessageTest
         Assert.Equal<string>(s_action, message.Headers.Action);
         Assert.True(message.IsEmpty);
     }
-    
+
     public static void CreateMessageWithSoap12WSAddressing10_WithBody()
     {
         string content = "This is what goes in the body of the message.";
@@ -43,7 +46,7 @@ public static class MessageTest
         Assert.Equal<string>(content, messageBody);
     }
 
-    [Fact]
+    [WcfFact]
     public static void CreateMessageWithSoap12WSAddressing10_WithCustomBodyWriter()
     {
         var message = Message.CreateMessage(MessageVersion.Soap12WSAddressing10, s_action, new CustomBodyWriter());
@@ -58,7 +61,7 @@ public static class MessageTest
         Assert.Equal<string>(string.Empty, messageBody);
     }
 
-    [Fact]
+    [WcfFact]
     // Get the MessageVersion from a Custom binding
     public static void GetMessageVersion()
     {

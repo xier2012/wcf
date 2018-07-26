@@ -1,14 +1,17 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 
 using System;
 using System.ServiceModel.Channels;
 using System.ServiceModel.Tests.Common;
+using Infrastructure.Common;
 using Xunit;
 
 public static class TcpConnectionPoolSettingsTest
 {
-    [Theory]
+    [WcfTheory]
     [InlineData("")]
     [InlineData("testValue")]
     public static void GroupName_Property_Sets(string groupName)
@@ -20,7 +23,7 @@ public static class TcpConnectionPoolSettingsTest
         Assert.Equal<string>(groupName, settings.GroupName);
     }
 
-    [Fact]
+    [WcfFact]
     public static void GroupName_Property_Set_Null_Value_Throws()
     {
         // TcpConnectionPoolSettings has no public constructor but we can access it from the TcpTransportBindingElement
@@ -29,7 +32,7 @@ public static class TcpConnectionPoolSettingsTest
         Assert.Throws<ArgumentNullException>(() => settings.GroupName = null);
     }
 
-    [Theory]
+    [WcfTheory]
     [MemberData("ValidTimeOuts", MemberType = typeof(TestData))]
     public static void IdleTimeout_Property_Sets(TimeSpan timeSpan)
     {
@@ -40,7 +43,7 @@ public static class TcpConnectionPoolSettingsTest
         Assert.Equal<TimeSpan>(timeSpan, settings.IdleTimeout);
     }
 
-    [Theory]
+    [WcfTheory]
     [MemberData("InvalidTimeOuts", MemberType = typeof(TestData))]
     public static void IdleTimeout_Property_Set_Invalid_Value_Throws(TimeSpan timeSpan)
     {
@@ -50,7 +53,7 @@ public static class TcpConnectionPoolSettingsTest
         Assert.Throws<ArgumentOutOfRangeException>(() => settings.IdleTimeout = timeSpan);
     }
 
-    [Theory]
+    [WcfTheory]
     [MemberData("ValidTimeOuts", MemberType = typeof(TestData))]
     public static void LeaseTimeout_Property_Sets(TimeSpan timeSpan)
     {
@@ -61,7 +64,7 @@ public static class TcpConnectionPoolSettingsTest
         Assert.Equal<TimeSpan>(timeSpan, settings.LeaseTimeout);
     }
 
-    [Theory]
+    [WcfTheory]
     [MemberData("InvalidTimeOuts", MemberType = typeof(TestData))]
     public static void LeaseTimeout_Property_Set_Invalid_Value_Throws(TimeSpan timeSpan)
     {
@@ -71,8 +74,7 @@ public static class TcpConnectionPoolSettingsTest
         Assert.Throws<ArgumentOutOfRangeException>(() => settings.LeaseTimeout = timeSpan);
     }
 
-
-    [Theory]
+    [WcfTheory]
     [InlineData(0)]
     [InlineData(1)]
     public static void MaxOutboundConnectionsPerEndpoint_Property_Sets(int value)
@@ -84,7 +86,7 @@ public static class TcpConnectionPoolSettingsTest
         Assert.Equal<int>(value, settings.MaxOutboundConnectionsPerEndpoint);
     }
 
-    [Theory]
+    [WcfTheory]
     [InlineData(-1)]
     public static void MaxOutboundConnectionsPerEndpoint_Property_Set_Invalid_Value_Throws(int value)
     {
